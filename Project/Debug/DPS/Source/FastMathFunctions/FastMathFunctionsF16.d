@@ -1,0 +1,34 @@
+DPS/Source/FastMathFunctions/FastMathFunctionsF16.o: \
+ ../DPS/Source/FastMathFunctions/FastMathFunctionsF16.c \
+ ../DPS/Source/FastMathFunctions/arm_vexp_f16.c \
+ C:/Work/Micro/Project/Project/DPS/Include/dsp/fast_math_functions_f16.h \
+ C:/Work/Micro/Project/Project/DPS/Include/arm_math_types_f16.h \
+ C:/Work/Micro/Project/Project/DPS/Include/arm_math_types.h \
+ ../Drivers/CMSIS/Include/cmsis_compiler.h \
+ ../Drivers/CMSIS/Include/cmsis_gcc.h \
+ C:/Work/Micro/Project/Project/DPS/Include/arm_math_memory.h \
+ C:/Work/Micro/Project/Project/DPS/Include/dsp/none.h \
+ C:/Work/Micro/Project/Project/DPS/Include/arm_math_types.h \
+ C:/Work/Micro/Project/Project/DPS/Include/dsp/utils.h \
+ C:/Work/Micro/Project/Project/DPS/Include/dsp/fast_math_functions.h \
+ C:/Work/Micro/Project/Project/DPS/Include/dsp/basic_math_functions.h \
+ ../DPS/Source/FastMathFunctions/arm_vlog_f16.c \
+ C:/Work/Micro/Project/Project/DPS/Include/dsp/support_functions_f16.h \
+ ../DPS/Source/FastMathFunctions/arm_vinverse_f16.c \
+ ../DPS/Source/FastMathFunctions/arm_atan2_f16.c
+../DPS/Source/FastMathFunctions/arm_vexp_f16.c:
+C:/Work/Micro/Project/Project/DPS/Include/dsp/fast_math_functions_f16.h:
+C:/Work/Micro/Project/Project/DPS/Include/arm_math_types_f16.h:
+C:/Work/Micro/Project/Project/DPS/Include/arm_math_types.h:
+../Drivers/CMSIS/Include/cmsis_compiler.h:
+../Drivers/CMSIS/Include/cmsis_gcc.h:
+C:/Work/Micro/Project/Project/DPS/Include/arm_math_memory.h:
+C:/Work/Micro/Project/Project/DPS/Include/dsp/none.h:
+C:/Work/Micro/Project/Project/DPS/Include/arm_math_types.h:
+C:/Work/Micro/Project/Project/DPS/Include/dsp/utils.h:
+C:/Work/Micro/Project/Project/DPS/Include/dsp/fast_math_functions.h:
+C:/Work/Micro/Project/Project/DPS/Include/dsp/basic_math_functions.h:
+../DPS/Source/FastMathFunctions/arm_vlog_f16.c:
+C:/Work/Micro/Project/Project/DPS/Include/dsp/support_functions_f16.h:
+../DPS/Source/FastMathFunctions/arm_vinverse_f16.c:
+../DPS/Source/FastMathFunctions/arm_atan2_f16.c:

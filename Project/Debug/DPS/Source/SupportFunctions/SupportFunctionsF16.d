@@ -1,0 +1,40 @@
+DPS/Source/SupportFunctions/SupportFunctionsF16.o: \
+ ../DPS/Source/SupportFunctions/SupportFunctionsF16.c \
+ ../DPS/Source/SupportFunctions/arm_copy_f16.c \
+ C:/Work/Micro/Project/Project/DPS/Include/dsp/support_functions_f16.h \
+ C:/Work/Micro/Project/Project/DPS/Include/arm_math_types_f16.h \
+ C:/Work/Micro/Project/Project/DPS/Include/arm_math_types.h \
+ ../Drivers/CMSIS/Include/cmsis_compiler.h \
+ ../Drivers/CMSIS/Include/cmsis_gcc.h \
+ C:/Work/Micro/Project/Project/DPS/Include/arm_math_memory.h \
+ C:/Work/Micro/Project/Project/DPS/Include/dsp/none.h \
+ C:/Work/Micro/Project/Project/DPS/Include/arm_math_types.h \
+ C:/Work/Micro/Project/Project/DPS/Include/dsp/utils.h \
+ ../DPS/Source/SupportFunctions/arm_fill_f16.c \
+ ../DPS/Source/SupportFunctions/arm_f16_to_q15.c \
+ ../DPS/Source/SupportFunctions/arm_f16_to_float.c \
+ ../DPS/Source/SupportFunctions/arm_f16_to_f64.c \
+ ../DPS/Source/SupportFunctions/arm_f64_to_f16.c \
+ ../DPS/Source/SupportFunctions/arm_q15_to_f16.c \
+ ../DPS/Source/SupportFunctions/arm_float_to_f16.c \
+ ../DPS/Source/SupportFunctions/arm_weighted_sum_f16.c \
+ ../DPS/Source/SupportFunctions/arm_barycenter_f16.c
+../DPS/Source/SupportFunctions/arm_copy_f16.c:
+C:/Work/Micro/Project/Project/DPS/Include/dsp/support_functions_f16.h:
+C:/Work/Micro/Project/Project/DPS/Include/arm_math_types_f16.h:
+C:/Work/Micro/Project/Project/DPS/Include/arm_math_types.h:
+../Drivers/CMSIS/Include/cmsis_compiler.h:
+../Drivers/CMSIS/Include/cmsis_gcc.h:
+C:/Work/Micro/Project/Project/DPS/Include/arm_math_memory.h:
+C:/Work/Micro/Project/Project/DPS/Include/dsp/none.h:
+C:/Work/Micro/Project/Project/DPS/Include/arm_math_types.h:
+C:/Work/Micro/Project/Project/DPS/Include/dsp/utils.h:
+../DPS/Source/SupportFunctions/arm_fill_f16.c:
+../DPS/Source/SupportFunctions/arm_f16_to_q15.c:
+../DPS/Source/SupportFunctions/arm_f16_to_float.c:
+../DPS/Source/SupportFunctions/arm_f16_to_f64.c:
+../DPS/Source/SupportFunctions/arm_f64_to_f16.c:
+../DPS/Source/SupportFunctions/arm_q15_to_f16.c:
+../DPS/Source/SupportFunctions/arm_float_to_f16.c:
+../DPS/Source/SupportFunctions/arm_weighted_sum_f16.c:
+../DPS/Source/SupportFunctions/arm_barycenter_f16.c:
