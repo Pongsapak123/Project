@@ -42,15 +42,14 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-ADC_HandleTypeDef hadc1;
-
-SPI_HandleTypeDef hspi2;
+I2C_HandleTypeDef hi2c2;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
+UART_HandleTypeDef huart6;
 
 /* USER CODE BEGIN PV */
 
@@ -65,6 +64,8 @@ float max_velocity = 0.0;
 float acc = 0.0;
 float max_acc = 0.0;
 float rangeTarget = 0.5;
+
+float velocityfeedback;
 
 float Dutyfeedback;
 float Error = 0;
@@ -91,11 +92,12 @@ static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
-static void MX_ADC1_Init(void);
-static void MX_SPI2_Init(void);
+static void MX_I2C2_Init(void);
+static void MX_USART6_UART_Init(void);
 /* USER CODE BEGIN PFP */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim3);
-void PID(int setposition);
+void PID_Position(float setposition);
+void PID_Velocity(int setvelocity);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -135,8 +137,8 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM1_Init();
   MX_TIM3_Init();
-  MX_ADC1_Init();
-  MX_SPI2_Init();
+  MX_I2C2_Init();
+  MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_1 | TIM_CHANNEL_2);
 
@@ -155,12 +157,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-//	  static uint32_t timestamp = 0;
-//	  if(timestamp < HAL_GetTick()){
-//		  timestamp = HAL_GetTick() + 10;
-//
-//
-//	  }
+	  PID_Position(pos);
 
 //	  static uint32_t timestamp = 0;
 //
@@ -176,8 +173,6 @@ int main(void)
 //			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, SET);
 //		}
 	  //	}
-
-
 
   }
   /* USER CODE END 3 */
@@ -230,92 +225,36 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief ADC1 Initialization Function
+  * @brief I2C2 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_ADC1_Init(void)
+static void MX_I2C2_Init(void)
 {
 
-  /* USER CODE BEGIN ADC1_Init 0 */
+  /* USER CODE BEGIN I2C2_Init 0 */
 
-  /* USER CODE END ADC1_Init 0 */
+  /* USER CODE END I2C2_Init 0 */
 
-  ADC_ChannelConfTypeDef sConfig = {0};
+  /* USER CODE BEGIN I2C2_Init 1 */
 
-  /* USER CODE BEGIN ADC1_Init 1 */
-
-  /* USER CODE END ADC1_Init 1 */
-
-  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
-  */
-  hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
-  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  /* USER CODE END I2C2_Init 1 */
+  hi2c2.Instance = I2C2;
+  hi2c2.Init.ClockSpeed = 100000;
+  hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c2.Init.OwnAddress1 = 0;
+  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c2.Init.OwnAddress2 = 0;
+  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
   {
     Error_Handler();
   }
+  /* USER CODE BEGIN I2C2_Init 2 */
 
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_4;
-  sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN ADC1_Init 2 */
-
-  /* USER CODE END ADC1_Init 2 */
-
-}
-
-/**
-  * @brief SPI2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_SPI2_Init(void)
-{
-
-  /* USER CODE BEGIN SPI2_Init 0 */
-
-  /* USER CODE END SPI2_Init 0 */
-
-  /* USER CODE BEGIN SPI2_Init 1 */
-
-  /* USER CODE END SPI2_Init 1 */
-  /* SPI2 parameter configuration*/
-  hspi2.Instance = SPI2;
-  hspi2.Init.Mode = SPI_MODE_MASTER;
-  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi2.Init.CRCPolynomial = 10;
-  if (HAL_SPI_Init(&hspi2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SPI2_Init 2 */
-
-  /* USER CODE END SPI2_Init 2 */
+  /* USER CODE END I2C2_Init 2 */
 
 }
 
@@ -522,6 +461,39 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+  * @brief USART6 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART6_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART6_Init 0 */
+
+  /* USER CODE END USART6_Init 0 */
+
+  /* USER CODE BEGIN USART6_Init 1 */
+
+  /* USER CODE END USART6_Init 1 */
+  huart6.Instance = USART6;
+  huart6.Init.BaudRate = 115200;
+  huart6.Init.WordLength = UART_WORDLENGTH_8B;
+  huart6.Init.StopBits = UART_STOPBITS_1;
+  huart6.Init.Parity = UART_PARITY_NONE;
+  huart6.Init.Mode = UART_MODE_TX_RX;
+  huart6.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart6.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart6) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART6_Init 2 */
+
+  /* USER CODE END USART6_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -535,9 +507,11 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, Switch_Relay_1_Pin|Switch_Relay_2_Pin|Switch_Relay_3_Pin|Switch_Relay_6_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, Switch_Relay_1_Pin|Switch_Relay_2_Pin|Switch_Relay_3_Pin|Switch_Relay_6_Pin
+                          |DIR_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, JoyStick_SS_PIN_Pin|Switch_Relay_5_Pin, GPIO_PIN_RESET);
@@ -551,8 +525,20 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Switch_Relay_1_Pin Switch_Relay_2_Pin Switch_Relay_3_Pin Switch_Relay_6_Pin */
-  GPIO_InitStruct.Pin = Switch_Relay_1_Pin|Switch_Relay_2_Pin|Switch_Relay_3_Pin|Switch_Relay_6_Pin;
+  /*Configure GPIO pins : Joy1_Pin Joy2_Pin Joy3_Pin Joy4_Pin
+                           Photoelectric_sensor_3_Pin Photoelectric_sensor_2_Pin Joy5_Pin Joy6_Pin
+                           Joy7_Pin */
+  GPIO_InitStruct.Pin = Joy1_Pin|Joy2_Pin|Joy3_Pin|Joy4_Pin
+                          |Photoelectric_sensor_3_Pin|Photoelectric_sensor_2_Pin|Joy5_Pin|Joy6_Pin
+                          |Joy7_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : Switch_Relay_1_Pin Switch_Relay_2_Pin Switch_Relay_3_Pin Switch_Relay_6_Pin
+                           DIR_Pin */
+  GPIO_InitStruct.Pin = Switch_Relay_1_Pin|Switch_Relay_2_Pin|Switch_Relay_3_Pin|Switch_Relay_6_Pin
+                          |DIR_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -565,17 +551,17 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : EmergencySwitch_Pin Photoelectric_sensor_1_Pin */
-  GPIO_InitStruct.Pin = EmergencySwitch_Pin|Photoelectric_sensor_1_Pin;
+  /*Configure GPIO pins : Joy9_Pin EmergencySwitch_Pin Photoelectric_sensor_1_Pin */
+  GPIO_InitStruct.Pin = Joy9_Pin|EmergencySwitch_Pin|Photoelectric_sensor_1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Photoelectric_sensor_3_Pin Photoelectric_sensor_2_Pin */
-  GPIO_InitStruct.Pin = Photoelectric_sensor_3_Pin|Photoelectric_sensor_2_Pin;
+  /*Configure GPIO pin : Joy8_Pin */
+  GPIO_InitStruct.Pin = Joy8_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_GPIO_Init(Joy8_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : Switch_Relay_4_Pin */
   GPIO_InitStruct.Pin = Switch_Relay_4_Pin;
@@ -587,81 +573,87 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void PID(int setposition){
-	QEIReadRaw = __HAL_TIM_GET_COUNTER(&htim2);
-	PosY = QEIReadRaw * (120.0/8192.0);
+void PID_position(int setposition){
+	static timestamp_pid = 0;
+	if(HAL_GetTick()>= timestamp_pid){
 
-	if(setposition < 0){
-		setposition = 0;
-	}else if(setposition > 600){
-		setposition = 600;
+		timestamp_pid = HAL_GetTick() + 1;
+
+		///////////////////////////////////////////
+		QEIReadRaw = __HAL_TIM_GET_COUNTER(&htim2);
+		PosY = QEIReadRaw * (120.0/8192.0);
+
+		if(setposition < 0){
+			setposition = 0;
+		}else if(setposition > 700){
+			setposition = 700;
+		}
+
+		current_pos = PosY;
+//		current_velocity = (current_pos - previous_pos)/0.001;
+//		acc = (current_velocity - previous_velocity)/0.001;
+//		previous_pos = current_pos;
+		previous_velocity = current_velocity;
+
+		if (current_velocity> max_velocity) {
+			max_velocity = current_velocity;
+		}
+		if (acc > max_acc) {
+			max_acc = acc;
+		}
+
+		Error = setposition - PosY;
+		if (!((Dutyfeedback >= 65535) && ((Error >= 0 && Intregral >= 0) || (Error < 0 && Intregral < 0))))
+		{
+			Intregral = Intregral + Error;
+		}
+
+		Dutyfeedback = (Kp*Error) + (Kd * ((Error - Last_Error)/deltaT)) + (Intregral * Ki);
+
+		if(Error > 1.0){
+			Dutyfeedback += 1 * Kp;
+		}else if (Error < -1.0) {
+			Dutyfeedback -= 1 * Kp;
+		}
+
+		Last_Error = Error;
+		Dutyfeedback = fabs(Dutyfeedback);
+
+		//		  checker += 1;
+		if(Dutyfeedback > 65535){
+			Dutyfeedback = 65535;
+		}
+		else if(Dutyfeedback < - 65535){
+			Dutyfeedback = -65535;
+		}
+
+		if(setposition >= PosY - 1.0 && setposition <= PosY + 1.0){
+			__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,0);
+			//			  HAL_Delay(1000);
+			//			  if(setposition ==110){
+			//				  setposition = 0;
+			//			  }else if(setposition == 0){
+			//				  setposition = 110;
+			//			  }
+			Intregral = 0;
+			Dutyfeedback = 0;
+		}
+		else if(setposition > PosY ){
+			__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,Dutyfeedback);
+			//			  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,65535*0.7);
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, SET); //1
+		}
+		else if(setposition < PosY ){
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, RESET); //0
+			__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,Dutyfeedback);
+			//			  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,65535*0.4);
+		}
 	}
 
-	current_pos = PosY;
-	current_velocity = (current_pos - previous_pos)/0.01;
-	acc = (current_velocity - previous_velocity)/0.01;
-	previous_pos = current_pos;
-	previous_velocity = current_velocity;
-
-	if (current_velocity> max_velocity) {
-		max_velocity = current_velocity;
-	}
-	if (acc > max_acc) {
-		max_acc = acc;
-	}
-
-	Error = setposition - PosY;
-	if (!((Dutyfeedback >= 65535) && ((Error >= 0 && Intregral >= 0) || (Error < 0 && Intregral < 0))))
-	{
-		Intregral = Intregral + Error;
-	}
-
-	Dutyfeedback = (Kp*Error) + (Kd * ((Error - Last_Error)/deltaT)) + (Intregral * Ki);
-
-	if(Error > 1.0){
-		Dutyfeedback += 1 * Kp;
-	}else if (Error < -1.0) {
-		Dutyfeedback -= 1 * Kp;
-	}
-
-	Last_Error = Error;
-	Dutyfeedback = fabs(Dutyfeedback);
-
-	//		  checker += 1;
-	if(Dutyfeedback > 65535){
-		Dutyfeedback = 65535;
-	}
-	else if(Dutyfeedback < - 65535){
-		Dutyfeedback = -65535;
-	}
-
-	if(setposition >= PosY - 1.0 && setposition <= PosY + 1.0){
-		__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,0);
-		//			  HAL_Delay(1000);
-		//			  if(setposition ==110){
-		//				  setposition = 0;
-		//			  }else if(setposition == 0){
-		//				  setposition = 110;
-		//			  }
-		Intregral = 0;
-		Dutyfeedback = 0;
-	}
-	else if(setposition > PosY ){
-		__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,Dutyfeedback);
-		//			  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,65535*0.7);
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, SET); //1
-	}
-	else if(setposition < PosY ){
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, RESET); //0
-		__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,Dutyfeedback);
-		//			  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,65535*0.4);
-	}
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-	if(htim == &htim3){
-			PID(pos);
-		}
+
 }
 /* USER CODE END 4 */
 

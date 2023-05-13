@@ -61,6 +61,14 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define B1_Pin GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
+#define Joy1_Pin GPIO_PIN_0
+#define Joy1_GPIO_Port GPIOC
+#define Joy2_Pin GPIO_PIN_1
+#define Joy2_GPIO_Port GPIOC
+#define Joy3_Pin GPIO_PIN_2
+#define Joy3_GPIO_Port GPIOC
+#define Joy4_Pin GPIO_PIN_3
+#define Joy4_GPIO_Port GPIOC
 #define USART_TX_Pin GPIO_PIN_2
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3
@@ -73,6 +81,8 @@ void Error_Handler(void);
 #define Switch_Relay_3_GPIO_Port GPIOA
 #define JoyStick_SS_PIN_Pin GPIO_PIN_5
 #define JoyStick_SS_PIN_GPIO_Port GPIOC
+#define Joy9_Pin GPIO_PIN_2
+#define Joy9_GPIO_Port GPIOB
 #define EmergencySwitch_Pin GPIO_PIN_15
 #define EmergencySwitch_GPIO_Port GPIOB
 #define Photoelectric_sensor_3_Pin GPIO_PIN_6
@@ -83,10 +93,20 @@ void Error_Handler(void);
 #define Photoelectric_sensor_2_GPIO_Port GPIOC
 #define Switch_Relay_6_Pin GPIO_PIN_9
 #define Switch_Relay_6_GPIO_Port GPIOA
+#define DIR_Pin GPIO_PIN_10
+#define DIR_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
+#define Joy5_Pin GPIO_PIN_10
+#define Joy5_GPIO_Port GPIOC
+#define Joy6_Pin GPIO_PIN_11
+#define Joy6_GPIO_Port GPIOC
+#define Joy7_Pin GPIO_PIN_12
+#define Joy7_GPIO_Port GPIOC
+#define Joy8_Pin GPIO_PIN_2
+#define Joy8_GPIO_Port GPIOD
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
 #define Switch_Relay_4_Pin GPIO_PIN_6
