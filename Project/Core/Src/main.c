@@ -78,8 +78,8 @@ float Kp = 2700.0;//2700
 float Ki = 200.0; //200
 float Kd = 5.0; //5
 
-int pos = 0;
-
+float pos = 0;
+int dir;
 uint32_t checker = 0;
 
 uint8_t direction = 0;
@@ -158,7 +158,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 	  PID_Position(pos);
-
+	  PID_Velocity(velocityfeedback);
 //	  static uint32_t timestamp = 0;
 //
 //	if(HAL_GetTick()>=timestamp){
@@ -573,11 +573,12 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void PID_position(int setposition){
-	static timestamp_pid = 0;
-	if(HAL_GetTick()>= timestamp_pid){
+void PID_Position(float setposition);
+void PID_position(float setposition){
+	static uint32_t timestamp_pid_pos = 0;
+	if(HAL_GetTick()>= timestamp_pid_pos){
 
-		timestamp_pid = HAL_GetTick() + 1;
+		timestamp_pid_pos = HAL_GetTick() + 1;
 
 		///////////////////////////////////////////
 		QEIReadRaw = __HAL_TIM_GET_COUNTER(&htim2);
@@ -593,16 +594,45 @@ void PID_position(int setposition){
 //		current_velocity = (current_pos - previous_pos)/0.001;
 //		acc = (current_velocity - previous_velocity)/0.001;
 //		previous_pos = current_pos;
-		previous_velocity = current_velocity;
+//		previous_velocity = current_velocity;
 
-		if (current_velocity> max_velocity) {
-			max_velocity = current_velocity;
-		}
-		if (acc > max_acc) {
-			max_acc = acc;
-		}
+//		if (current_velocity> max_velocity) {
+//			max_velocity = current_velocity;
+//		}
+//		if (acc > max_acc) {
+//			max_acc = acc;
+//		}
 
 		Error = setposition - PosY;
+		if (!((velocityfeedback >= 65535) && ((Error >= 0 && Intregral >= 0) || (Error < 0 && Intregral < 0))))
+		{
+			Intregral = Intregral + Error;
+		}
+
+		velocityfeedback = (Kp*Error) + (Kd * ((Error - Last_Error)/deltaT)) + (Intregral * Ki);
+
+		Last_Error = Error;
+		velocityfeedback = fabs(velocityfeedback);
+
+		if(velocityfeedback > 1400){
+			velocityfeedback = 1400;
+		}
+		else if(velocityfeedback < - 1400){
+			velocityfeedback = -1400;
+		}
+
+	}
+}
+
+void PID_Velocity(int setvelocity){
+	static uint32_t timestamp_pid_velocity = 0;
+	if(HAL_GetTick()>= timestamp_pid_velocity){
+
+		timestamp_pid_velocity = HAL_GetTick() + 0.1;
+
+		///////////////////////////////////////////
+
+		Error = setvelocity - current_velocity;
 		if (!((Dutyfeedback >= 65535) && ((Error >= 0 && Intregral >= 0) || (Error < 0 && Intregral < 0))))
 		{
 			Intregral = Intregral + Error;
@@ -610,6 +640,11 @@ void PID_position(int setposition){
 
 		Dutyfeedback = (Kp*Error) + (Kd * ((Error - Last_Error)/deltaT)) + (Intregral * Ki);
 
+		if(Dutyfeedback < 0){
+			dir = -1;
+		}else if(Dutyfeedback > 0){
+			dir = 1;
+		}
 		if(Error > 1.0){
 			Dutyfeedback += 1 * Kp;
 		}else if (Error < -1.0) {
@@ -619,7 +654,6 @@ void PID_position(int setposition){
 		Last_Error = Error;
 		Dutyfeedback = fabs(Dutyfeedback);
 
-		//		  checker += 1;
 		if(Dutyfeedback > 65535){
 			Dutyfeedback = 65535;
 		}
@@ -627,34 +661,34 @@ void PID_position(int setposition){
 			Dutyfeedback = -65535;
 		}
 
-		if(setposition >= PosY - 1.0 && setposition <= PosY + 1.0){
-			__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,0);
-			//			  HAL_Delay(1000);
-			//			  if(setposition ==110){
-			//				  setposition = 0;
-			//			  }else if(setposition == 0){
-			//				  setposition = 110;
-			//			  }
-			Intregral = 0;
-			Dutyfeedback = 0;
-		}
-		else if(setposition > PosY ){
-			__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,Dutyfeedback);
-			//			  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,65535*0.7);
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, SET); //1
-		}
-		else if(setposition < PosY ){
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, RESET); //0
-			__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,Dutyfeedback);
-			//			  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,65535*0.4);
-		}
+//	if(setposition >= PosY - 1.0 && setposition <= PosY + 1.0){
+//		__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,0);
+//		//			  HAL_Delay(1000);
+//		//			  if(setposition ==110){
+//		//				  setposition = 0;
+//		//			  }else if(setposition == 0){
+//		//				  setposition = 110;
+//		//			  }
+//		Intregral = 0;
+//		Dutyfeedback = 0;
+//	}
+	if(dir==1){
+		__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,Dutyfeedback);
+		//			  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,65535*0.7);
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, SET); //1
 	}
-
+	else if(dir==-1){
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, RESET); //0
+		__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,Dutyfeedback);
+		//			  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,65535*0.4);
+	}
+	}
 }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 
-}
+//void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+//
+//}
 /* USER CODE END 4 */
 
 /**
