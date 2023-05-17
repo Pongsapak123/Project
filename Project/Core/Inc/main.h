@@ -61,6 +61,7 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define B1_Pin GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
+#define B1_EXTI_IRQn EXTI15_10_IRQn
 #define Joy1_Pin GPIO_PIN_0
 #define Joy1_GPIO_Port GPIOC
 #define Joy2_Pin GPIO_PIN_1
@@ -87,10 +88,12 @@ void Error_Handler(void);
 #define EmergencySwitch_GPIO_Port GPIOB
 #define Photoelectric_sensor_3_Pin GPIO_PIN_6
 #define Photoelectric_sensor_3_GPIO_Port GPIOC
+#define Photoelectric_sensor_3_EXTI_IRQn EXTI9_5_IRQn
 #define Switch_Relay_5_Pin GPIO_PIN_7
 #define Switch_Relay_5_GPIO_Port GPIOC
-#define Photoelectric_sensor_2_Pin GPIO_PIN_8
+#define Photoelectric_sensor_2_Pin GPIO_PIN_9
 #define Photoelectric_sensor_2_GPIO_Port GPIOC
+#define Photoelectric_sensor_2_EXTI_IRQn EXTI9_5_IRQn
 #define Switch_Relay_6_Pin GPIO_PIN_9
 #define Switch_Relay_6_GPIO_Port GPIOA
 #define DIR_Pin GPIO_PIN_10
@@ -113,6 +116,7 @@ void Error_Handler(void);
 #define Switch_Relay_4_GPIO_Port GPIOB
 #define Photoelectric_sensor_1_Pin GPIO_PIN_8
 #define Photoelectric_sensor_1_GPIO_Port GPIOB
+#define Photoelectric_sensor_1_EXTI_IRQn EXTI9_5_IRQn
 
 /* USER CODE BEGIN Private defines */
 
