@@ -1,0 +1,11 @@
+../Core/Src/Function.c:43:6:Trajectory_Gen	56	static
+../Core/Src/Function.c:70:6:Trajectory_Eva	32	static
+../Core/Src/Function.c:151:6:PID	24	static
+../Core/Src/Function.c:219:6:Init_Homing	8	static
+../Core/Src/Function.c:251:6:Test_Range	8	static
+../Core/Src/Function.c:282:6:Photo_IT	8	static
+../Core/Src/Function.c:301:6:motor	16	static
+../Core/Src/Function.c:314:6:read_pos	8	static
+../Core/Src/Function.c:319:6:HAL_GPIO_EXTI_Callback	16	static
+../Core/Src/Function.c:339:6:HAL_TIM_PeriodElapsedCallback	24	static
+../Core/Src/Function.c:345:10:micros	12	static
