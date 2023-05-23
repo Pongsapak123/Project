@@ -62,6 +62,9 @@ void Error_Handler(void);
 #define B1_Pin GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
 #define B1_EXTI_IRQn EXTI15_10_IRQn
+#define Emergency_Pin GPIO_PIN_3
+#define Emergency_GPIO_Port GPIOC
+#define Emergency_EXTI_IRQn EXTI3_IRQn
 #define USART_TX_Pin GPIO_PIN_2
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3
@@ -72,13 +75,9 @@ void Error_Handler(void);
 #define Switch_Relay_2_GPIO_Port GPIOA
 #define Switch_Relay_3_Pin GPIO_PIN_7
 #define Switch_Relay_3_GPIO_Port GPIOA
-#define JoyStick_SS_PIN_Pin GPIO_PIN_5
-#define JoyStick_SS_PIN_GPIO_Port GPIOC
 #define Photoelectric_sensor_2_Pin GPIO_PIN_2
 #define Photoelectric_sensor_2_GPIO_Port GPIOB
 #define Photoelectric_sensor_2_EXTI_IRQn EXTI2_IRQn
-#define EmergencySwitch_Pin GPIO_PIN_15
-#define EmergencySwitch_GPIO_Port GPIOB
 #define Photoelectric_sensor_3_Pin GPIO_PIN_6
 #define Photoelectric_sensor_3_GPIO_Port GPIOC
 #define Photoelectric_sensor_3_EXTI_IRQn EXTI9_5_IRQn
@@ -88,6 +87,8 @@ void Error_Handler(void);
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
+#define JoyStick_SS_PIN_Pin GPIO_PIN_2
+#define JoyStick_SS_PIN_GPIO_Port GPIOD
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
 #define Photoelectric_sensor_1_Pin GPIO_PIN_8

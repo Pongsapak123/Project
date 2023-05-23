@@ -21,6 +21,6 @@
 //#define Photoelectric_sensor_3_Pin GPIO_PIN_6
 //#define Photoelectric_sensor_3_GPIO_Port GPIOC
 
-// for Trajectory gen and eva///
+
 
 #endif /* INC_FUNCTION_H_ */
