@@ -24,7 +24,7 @@
 #include "math.h"
 #include "arm_math.h"
 #include "Function.h"
-
+#include "ModBusRTU.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -35,19 +35,6 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define End_Address 0x15
-#define  Kp_pos 2700.0//2700
-#define Ki_pos 200.0 //200
-#define Kd_pos 5.0 //5
-
-#define Kp_velo 2700.0
-#define Ki_velo 200.0
-#define Kd_velo 5.0
-
-#define Max_Velocity 1400 // mm/s
-#define Max_Workspace 700 // mm
-
-#define Max_Counter_PWM 65536
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -64,51 +51,25 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim5;
+TIM_HandleTypeDef htim11;
 
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart6;
+DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
+////////////Traject/////////
+float pos_i = 0;
+float pos_f = 0;
 
-/* USER CODE END PV */
+uint8_t State_PID = 2;
+uint8_t state_IT = 0;
+uint8_t go_next = 0;
+uint8_t Re = 0;
 
-/* Private function prototypes -----------------------------------------------*/
-void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
-static void MX_USART2_UART_Init(void);
-static void MX_TIM2_Init(void);
-static void MX_TIM1_Init(void);
-static void MX_TIM3_Init(void);
-static void MX_I2C2_Init(void);
-static void MX_USART6_UART_Init(void);
-static void MX_TIM5_Init(void);
-static void MX_SPI3_Init(void);
-/* USER CODE BEGIN PFP */
-inline uint64_t micros();
-void Init_Homing();
-void Photo_IT();
-void motor(uint32_t speed, int DIR);
-void read_pos();
-void PID(float setposition);
-void EndEffector_Event(char EndEffector_State);
+uint64_t traject_us = 1000;
+uint64_t pid_us = 1000;
 
-void JoyStickControl();
-void Calculate_Position(float x_c1, float x_c2, float x_c3, float y_c1,
-		float y_c2, float y_c3);
-
-void Trajectory_Gen(double x_init, double x_fi, double v_fi, double Accel);
-void Trajectory_Eva();
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
-void PID_Position(float setposition);
-void PID_Velocity(int setvelocity);
-void Test_Range();
-
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-// for Trajectory gen and eva///
 int trajectory_type = 0;
 int direct = 0;
 double x_initial = 0;
@@ -136,9 +97,7 @@ double v;
 double a;
 ///////////////////////////////
 
-// for PID control
-int32_t QEIReadRaw;
-float PosY;
+// for PID control///////////
 int8_t dir;
 
 float Kp = 2400.0; //2600
@@ -164,7 +123,7 @@ float Intregral = 0;
 float deltaT = 0.00001;
 ////////////////////////////////
 
-// for JoyStick and Calibrate
+// for JoyStick and Calibrate////
 uint8_t TX[10] = { 0x01, 0x42 };
 uint8_t RX[10];
 uint8_t i = 0;
@@ -201,27 +160,23 @@ static uint8_t Place_data[2] = { 0x10, 0x69 };
 static uint8_t Read_data[1];
 int state_laser_test = 0;
 /////////////////////////////
-float pos_i = 0;
-float pos_f = 0;
 
-uint8_t direction = 0;
-
-uint8_t State_PID = 2;
-uint8_t state_IT = 0;
-uint8_t go_next = 0;
-uint8_t Re = 0;
-
-uint64_t traject_us = 1000;
-uint64_t pid_us = 1000;
 uint64_t _micros = 0;
-uint64_t checker = 0;
+
+ModbusHandleTypedef hmodbus;
+u16u8_t registerFrame[200];
+
+////////////read sensor/////////
 int photo1;
 int photo2;
 int photo3;
 int emer;
 
-int position_index = 0;
+int32_t QEIReadRaw;
+float PosY;
+////////////read sensor/////////
 
+int position_index = 0;
 float position_test[18] = { 538.0, 142.9, 518.7, 122.6, 498.1, 102.1, 538.0,
 		142.9, 518.7, 122.6, 498.1, 102.12, 538.0, 142.9, 518.7, 122.6, 498.1,
 		102.1 };
@@ -243,6 +198,29 @@ enum Laser {
 	Place,
 	Read,
 } EndEffector_State = Init;
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_TIM2_Init(void);
+static void MX_TIM1_Init(void);
+static void MX_TIM3_Init(void);
+static void MX_I2C2_Init(void);
+static void MX_USART6_UART_Init(void);
+static void MX_TIM5_Init(void);
+static void MX_SPI3_Init(void);
+static void MX_TIM11_Init(void);
+/* USER CODE BEGIN PFP */
+inline uint64_t micros();
+
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+// for Trajectory gen and eva///
 /* USER CODE END 0 */
 
 /**
@@ -272,6 +250,7 @@ int main(void) {
 
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
+	MX_DMA_Init();
 	MX_USART2_UART_Init();
 	MX_TIM2_Init();
 	MX_TIM1_Init();
@@ -280,12 +259,12 @@ int main(void) {
 	MX_USART6_UART_Init();
 	MX_TIM5_Init();
 	MX_SPI3_Init();
+	MX_TIM11_Init();
 	/* USER CODE BEGIN 2 */
 	EndEffector_Event(Reset);
 	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_1 | TIM_CHANNEL_2);
 
 	HAL_TIM_Base_Start_IT(&htim3);
-
 	HAL_TIM_Base_Start(&htim1);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
@@ -297,20 +276,31 @@ int main(void) {
 	t_count = traject_us / 1000000.00;
 	t_diff = traject_us / 1000000.00;
 
+	hmodbus.huart = &huart2;
+	hmodbus.htim = &htim11;
+	hmodbus.slaveAddress = 0x15;
+	hmodbus.RegisterSize = 200;
+	Modbus_init(&hmodbus, registerFrame);
+
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
+
+		static uint64_t timestamp_traject = 0;
+		static uint64_t timestamp_heartbeat = 0;
+		int64_t GetTicku = micros();
+		Modbus_Protocal_Worker();
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
 
-//		Test_Range();
-		static uint64_t timestamp_traject = 0;
-//		static uint64_t timestamp_pid = 0;
+		if (HAL_GetTick() >= timestamp_heartbeat) {
+			timestamp_heartbeat = HAL_GetTick() + 200;
 
-		int64_t GetTicku = micros();
+			registerFrame[0x00].U16 = 22881;
+		}
 
 		switch (state_laser_test) {
 		case 0:
@@ -325,23 +315,10 @@ int main(void) {
 			break;
 		case 3:
 			EndEffector_Event(Pick);
-//			HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin,
-//					SET);
-//			HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
-//					RESET);
-			HAL_Delay(2000);
-			pos_i = PosY;
 			state_laser_test = 0;
 			break;
 		case 4:
 			EndEffector_Event(Place);
-//			HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
-//					SET);
-//			HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin,
-//					RESET);
-			HAL_Delay(2000);
-			pos_i = PosY;
-
 			state_laser_test = 0;
 			break;
 		case 5:
@@ -363,10 +340,6 @@ int main(void) {
 			photo3 = HAL_GPIO_ReadPin(Photoelectric_sensor_3_GPIO_Port,
 			Photoelectric_sensor_3_Pin);
 			emer = HAL_GPIO_ReadPin(Emergency_GPIO_Port, Emergency_Pin);
-			go_next = 1;
-			if (go_next == 1) {
-				State = INIT_HOMING;
-			}
 			break;
 		case INIT_HOMING:
 			Init_Homing();
@@ -386,7 +359,6 @@ int main(void) {
 				Trajectory_Eva();
 				read_pos();
 				PID(x);
-
 			}
 			if (State_PID == 1) {
 				motor(0, 1);
@@ -429,14 +401,13 @@ void SystemClock_Config(void) {
 	/** Initializes the RCC Oscillators according to the specified parameters
 	 * in the RCC_OscInitTypeDef structure.
 	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-	RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+	RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-	RCC_OscInitStruct.PLL.PLLM = 16;
-	RCC_OscInitStruct.PLL.PLLN = 336;
-	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+	RCC_OscInitStruct.PLL.PLLM = 4;
+	RCC_OscInitStruct.PLL.PLLN = 100;
+	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
 	RCC_OscInitStruct.PLL.PLLQ = 4;
 	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
 		Error_Handler();
@@ -451,7 +422,7 @@ void SystemClock_Config(void) {
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK) {
 		Error_Handler();
 	}
 }
@@ -622,11 +593,11 @@ static void MX_TIM2_Init(void) {
 	sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
 	sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
 	sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
-	sConfig.IC1Filter = 0;
+	sConfig.IC1Filter = 15;
 	sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
 	sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
 	sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
-	sConfig.IC2Filter = 0;
+	sConfig.IC2Filter = 15;
 	if (HAL_TIM_Encoder_Init(&htim2, &sConfig) != HAL_OK) {
 		Error_Handler();
 	}
@@ -660,7 +631,7 @@ static void MX_TIM3_Init(void) {
 
 	/* USER CODE END TIM3_Init 1 */
 	htim3.Instance = TIM3;
-	htim3.Init.Prescaler = 83;
+	htim3.Init.Prescaler = 99;
 	htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
 	htim3.Init.Period = 9999;
 	htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -702,7 +673,7 @@ static void MX_TIM5_Init(void) {
 
 	/* USER CODE END TIM5_Init 1 */
 	htim5.Instance = TIM5;
-	htim5.Init.Prescaler = 83;
+	htim5.Init.Prescaler = 99;
 	htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
 	htim5.Init.Period = 4294967295;
 	htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -727,6 +698,51 @@ static void MX_TIM5_Init(void) {
 }
 
 /**
+ * @brief TIM11 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_TIM11_Init(void) {
+
+	/* USER CODE BEGIN TIM11_Init 0 */
+
+	/* USER CODE END TIM11_Init 0 */
+
+	TIM_OC_InitTypeDef sConfigOC = { 0 };
+
+	/* USER CODE BEGIN TIM11_Init 1 */
+
+	/* USER CODE END TIM11_Init 1 */
+	htim11.Instance = TIM11;
+	htim11.Init.Prescaler = 99;
+	htim11.Init.CounterMode = TIM_COUNTERMODE_UP;
+	htim11.Init.Period = 2005;
+	htim11.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	htim11.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+	if (HAL_TIM_Base_Init(&htim11) != HAL_OK) {
+		Error_Handler();
+	}
+	if (HAL_TIM_OC_Init(&htim11) != HAL_OK) {
+		Error_Handler();
+	}
+	if (HAL_TIM_OnePulse_Init(&htim11, TIM_OPMODE_SINGLE) != HAL_OK) {
+		Error_Handler();
+	}
+	sConfigOC.OCMode = TIM_OCMODE_ACTIVE;
+	sConfigOC.Pulse = 1433;
+	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+	sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+	if (HAL_TIM_OC_ConfigChannel(&htim11, &sConfigOC, TIM_CHANNEL_1)
+			!= HAL_OK) {
+		Error_Handler();
+	}
+	/* USER CODE BEGIN TIM11_Init 2 */
+
+	/* USER CODE END TIM11_Init 2 */
+
+}
+
+/**
  * @brief USART2 Initialization Function
  * @param None
  * @retval None
@@ -741,10 +757,10 @@ static void MX_USART2_UART_Init(void) {
 
 	/* USER CODE END USART2_Init 1 */
 	huart2.Instance = USART2;
-	huart2.Init.BaudRate = 115200;
-	huart2.Init.WordLength = UART_WORDLENGTH_8B;
+	huart2.Init.BaudRate = 19200;
+	huart2.Init.WordLength = UART_WORDLENGTH_9B;
 	huart2.Init.StopBits = UART_STOPBITS_1;
-	huart2.Init.Parity = UART_PARITY_NONE;
+	huart2.Init.Parity = UART_PARITY_EVEN;
 	huart2.Init.Mode = UART_MODE_TX_RX;
 	huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
 	huart2.Init.OverSampling = UART_OVERSAMPLING_16;
@@ -785,6 +801,21 @@ static void MX_USART6_UART_Init(void) {
 	/* USER CODE BEGIN USART6_Init 2 */
 
 	/* USER CODE END USART6_Init 2 */
+
+}
+
+/**
+ * Enable DMA controller clock
+ */
+static void MX_DMA_Init(void) {
+
+	/* DMA controller clock enable */
+	__HAL_RCC_DMA1_CLK_ENABLE();
+
+	/* DMA interrupt init */
+	/* DMA1_Stream6_IRQn interrupt configuration */
+	HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
 
 }
 
@@ -1007,8 +1038,6 @@ void PID(float setposition) {
 
 	Dutyfeedback = fabs(Dutyfeedback);
 
-//	pos_f >= PosY - 1 && pos_f <= PosY + 1
-
 //	if(PosY != x){
 //		State_PID = 1;
 //		State = PID_TEST;
@@ -1027,7 +1056,6 @@ void PID(float setposition) {
 		Dutyfeedback = 0;
 		v = 0;
 		a = 0;
-
 
 		if ((position_index + 2) % 2 == 0) {
 			state_laser_test = 3;
@@ -1158,6 +1186,7 @@ void Calculate_Position(float x_c1, float x_c2, float x_c3, float y_c1,
 void JoyStickControl() {
 
 	read_pos();
+
 	HAL_GPIO_WritePin(JoyStick_SS_PIN_GPIO_Port, JoyStick_SS_PIN_Pin, 0);
 	HAL_SPI_TransmitReceive(&hspi3, TX, RX, 10, 30);
 	HAL_GPIO_WritePin(JoyStick_SS_PIN_GPIO_Port, JoyStick_SS_PIN_Pin, 1);
@@ -1369,17 +1398,17 @@ void Error_Handler(void) {
 
 #ifdef  USE_FULL_ASSERT
 /**
-* @brief  Reports the name of the source file and the source line number
-*         where the assert_param error has occurred.
-* @param  file: pointer to the source file name
-* @param  line: assert_param error line source number
-* @retval None
-*/
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
 void assert_failed(uint8_t *file, uint32_t line)
 {
-/* USER CODE BEGIN 6 */
+  /* USER CODE BEGIN 6 */
 /* User can add his own implementation to report the file name and line number,
 ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-/* USER CODE END 6 */
+  /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

@@ -6,6 +6,5 @@
  */
 
 #include "Function.h"
-#include "math.h"
-#include "main.h"
+
 
