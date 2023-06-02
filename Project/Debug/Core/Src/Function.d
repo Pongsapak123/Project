@@ -61,7 +61,9 @@ Core/Src/Function.o: ../Core/Src/Function.c ../Core/Inc/Function.h \
  C:/Work/Micro/Project/Project/DPS/Include/dsp/filtering_functions.h \
  C:/Work/Micro/Project/Project/DPS/Include/dsp/support_functions.h \
  C:/Work/Micro/Project/Project/DPS/Include/dsp/quaternion_math_functions.h \
- C:/Work/Micro/Project/Project/DPS/Include/dsp/window_functions.h
+ C:/Work/Micro/Project/Project/DPS/Include/dsp/window_functions.h \
+ ../Core/Inc/endeffector.h ../Core/Inc/joystick.h \
+ ../Core/Inc/pid_traject.h ../Core/Inc/main.h
 ../Core/Inc/Function.h:
 ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h:
 ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f411xe.h:
@@ -126,3 +128,7 @@ C:/Work/Micro/Project/Project/DPS/Include/dsp/filtering_functions.h:
 C:/Work/Micro/Project/Project/DPS/Include/dsp/support_functions.h:
 C:/Work/Micro/Project/Project/DPS/Include/dsp/quaternion_math_functions.h:
 C:/Work/Micro/Project/Project/DPS/Include/dsp/window_functions.h:
+../Core/Inc/endeffector.h:
+../Core/Inc/joystick.h:
+../Core/Inc/pid_traject.h:
+../Core/Inc/main.h:

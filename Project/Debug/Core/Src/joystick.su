@@ -1,0 +1,2 @@
+../Core/Src/joystick.c:44:6:JoyStickControl	16	static
+../Core/Src/joystick.c:101:6:Calculate_Position	56	static

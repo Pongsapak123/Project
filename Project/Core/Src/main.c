@@ -24,6 +24,9 @@
 #include "math.h"
 #include "arm_math.h"
 #include "Function.h"
+#include "endeffector.h"
+#include "joystick.h"
+#include "pid_traject.h"
 #include "ModBusRTU.h"
 /* USER CODE END Includes */
 
@@ -59,105 +62,33 @@ DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 ////////////Traject/////////
-float pos_i = 0;
-float pos_f = 0;
-
-uint8_t State_PID = 2;
-uint8_t state_IT = 0;
-uint8_t go_next = 0;
-uint8_t Re = 0;
-
 uint64_t traject_us = 1000;
 uint64_t pid_us = 1000;
 
-int trajectory_type = 0;
-int direct = 0;
-double x_initial = 0;
-double x_final = 0;
-double v_final = 0;
-double Acceleration = 0;
+float pos_i = 0;
+float pos_f = 0;
 
-double deltaX = 0;
-double x_final1 = 0;
-double x_final2 = 0;
-double v_final1 = 0;
-double v_final2 = 0;
-double v_initial = 0;
+uint8_t state_IT = 0;
+uint8_t go_next = 0;
+uint8_t Re = 0;
 
 double t_Acce = 0.001;
 double t_DeAcce = 0.001;
 double t_Cons = 0.001;
 double t_count = 0.001;
 double t_diff = 0.001;
-double t_acceleration = 0;
-double t_final = 0;
-double t_triangle = 0;
+
 double x;
 double v;
 double a;
+
+float Dutyfeedback;
 ///////////////////////////////
 
 // for PID control///////////
-int8_t dir;
-
-float Kp = 2400.0; //2600
-float Ki = 1.3; //1
-float Kd = 0.7; //0.7
-
-float current_pos = 0.0;
-float previous_pos = 0.0;
-float current_velocity = 0.0;
-float previous_velocity = 0.0;
-float max_velocity = 0.0;
-float acc = 0.0;
-float max_acc = 0.0;
-float rangeTarget = 0.5;
-
-float velocityfeedback;
-float Dutyfeedback;
-
-float Error = 0;
-float Last_Error = 0;
-float Last_ErrordeltaT;
-float Intregral = 0;
-float deltaT = 0.00001;
+uint8_t State_PID = 2;
 ////////////////////////////////
 
-// for JoyStick and Calibrate////
-uint8_t TX[10] = { 0x01, 0x42 };
-uint8_t RX[10];
-uint8_t i = 0;
-uint8_t workState = 0;
-
-//Calibrate Data Set
-uint8_t y_count = 0;
-float y_c[3]; //Calibrate y-axis point
-float x_pre_final[9];
-float y_pre_final[9];
-float x_final_joy[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-float y_final[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-float q;
-uint8_t RX_last = 0x00;
-uint8_t button_last = 0x00;
-int imod3;
-//Motor
-uint16_t fast = 65536 * 0.23;
-uint16_t slow = 65536 * 0.23;
-uint8_t state_motor = 0; //0 is slow and 1 is fast
-
-/////////////////////////////
-
-///////Laser Status
-static uint8_t Test_Start_data[2] = { 0x01, 1 };
-static uint8_t Test_Stop_data[2] = { 0x01, 0 };
-static uint8_t Reset_data[4] = { 0x00, 0xFF, 0x55, 0xAA };
-static uint8_t In_Emergency_data[1] = { 0xFF };
-static uint8_t Out_Emergency_data[4] = { 0xE5, 0x7A, 0xFF, 0x81 };
-static uint8_t Run_Mode_data[2] = { 0x10, 0x13 };
-static uint8_t Close_Run_Mode_data[2] = { 0x10, 0x8C };
-static uint8_t Pick_data[2] = { 0x10, 0x5A };
-static uint8_t Place_data[2] = { 0x10, 0x69 };
-static uint8_t Read_data[1];
 int state_laser_test = 0;
 /////////////////////////////
 
@@ -282,6 +213,9 @@ int main(void) {
 	hmodbus.RegisterSize = 200;
 	Modbus_init(&hmodbus, registerFrame);
 
+	y_axis_Moving_Status = 2;
+	registerFrame[0x43].U16 = 2;
+	registerFrame[0x42].U16 = 2500;
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -300,6 +234,7 @@ int main(void) {
 			timestamp_heartbeat = HAL_GetTick() + 200;
 
 			registerFrame[0x00].U16 = 22881;
+
 		}
 
 		switch (state_laser_test) {
@@ -315,11 +250,17 @@ int main(void) {
 			break;
 		case 3:
 			EndEffector_Event(Pick);
+			pos_i = PosY;
+			registerFrame[0x41].U16 = 1400;
 			state_laser_test = 0;
+			HAL_Delay(1000);
 			break;
 		case 4:
 			EndEffector_Event(Place);
+			pos_i = PosY;
+			registerFrame[0x41].U16 = 0;
 			state_laser_test = 0;
+			HAL_Delay(1000);
 			break;
 		case 5:
 			EndEffector_Event(Reset);
@@ -340,6 +281,9 @@ int main(void) {
 			photo3 = HAL_GPIO_ReadPin(Photoelectric_sensor_3_GPIO_Port,
 			Photoelectric_sensor_3_Pin);
 			emer = HAL_GPIO_ReadPin(Emergency_GPIO_Port, Emergency_Pin);
+			if(go_next == 1){
+				State = INIT_HOMING;
+			}
 			break;
 		case INIT_HOMING:
 			Init_Homing();
@@ -353,7 +297,6 @@ int main(void) {
 			State = PID_STATE;
 			break;
 		case PID_STATE:
-
 			if (GetTicku >= timestamp_traject) {
 				timestamp_traject = GetTicku + traject_us;
 				Trajectory_Eva();
@@ -891,422 +834,6 @@ static void MX_GPIO_Init(void) {
 }
 
 /* USER CODE BEGIN 4 */
-void Trajectory_Gen(double x_init, double x_fi, double v_fi, double Accel) {
-	x_initial = x_init;
-	x_final = x_fi;
-	v_final = v_fi;
-	Acceleration = Accel;
-	t_Acce = traject_us / 1000000;
-	t_DeAcce = traject_us / 1000000;
-	t_Cons = traject_us / 1000000;
-	t_count = traject_us / 1000000;
-
-	deltaX = fabs(x_final - x_initial);
-	if (x_final - x_initial > 0) {
-		direct = 1;
-	} else if (x_final - x_initial < 0) {
-		direct = -1;
-	}
-
-	t_acceleration = v_final / Acceleration;
-
-	t_triangle = sqrt(deltaX / Acceleration);
-
-	if (t_triangle < t_acceleration) {
-		t_final = 2 * (t_triangle);
-		trajectory_type = 1;
-
-	} else if (t_triangle >= t_acceleration) {
-		t_final = (2 * t_acceleration)
-				+ (((deltaX) - (t_acceleration * v_final)) / v_final);
-		trajectory_type = 2;
-	}
-}
-
-void Trajectory_Eva() {
-	switch (trajectory_type) {
-	case 0:
-
-		break;
-	case 1:
-		if (t_count <= t_triangle) {
-			x = x_initial
-					+ (1.0 / 2.0 * direct * Acceleration * (t_Acce * t_Acce));
-			v = Acceleration * t_Acce * direct;
-			a = Acceleration * direct;
-			x_final1 = x;
-			v_final1 = v;
-			t_Acce = t_Acce + t_diff;
-			t_count = t_count + t_diff;
-
-		} else if (t_count <= t_final) {
-			x = x_final1 + (v_final1 * t_DeAcce)
-					- (1.0 / 2.0 * direct * Acceleration * t_DeAcce * t_DeAcce);
-			v = v_final1 - (Acceleration * t_DeAcce * direct);
-			a = -Acceleration * direct;
-			t_DeAcce = t_DeAcce + t_diff;
-			t_count = t_count + t_diff;
-		} else {
-			x = x_final;
-			v = 0;
-
-//			State = IDLE;
-			trajectory_type = 0;
-		}
-		break;
-	case 2:
-		if (t_count <= t_acceleration) {
-			x = x_initial + 1.0 / 2.0 * Acceleration * direct * t_Acce * t_Acce;
-			v = Acceleration * t_Acce * direct;
-			a = Acceleration * direct;
-			x_final1 = x;
-			v_final1 = v;
-
-			t_Acce = t_Acce + t_diff;
-			t_count = t_count + t_diff;
-
-		} else if (t_count <= t_final - t_acceleration) {
-			x = (v_final * t_Cons * direct) + x_final1;
-			v = v_final * direct;
-			a = 0;
-			x_final2 = x;
-			v_final2 = v;
-
-			t_Cons = t_Cons + t_diff;
-			t_count = t_count + t_diff;
-		} else if (t_count <= t_final) {
-			x =
-					x_final2 + (v_final2 * (t_DeAcce))
-							- (1.0 / 2.0 * direct * Acceleration
-									* (t_DeAcce * t_DeAcce));
-			v = v_final2 - (Acceleration * t_DeAcce * direct);
-			a = -Acceleration * direct;
-
-			t_DeAcce = t_DeAcce + t_diff;
-			t_count = t_count + t_diff;
-		} else {
-			x = x_final;
-			v = 0;
-
-//			State = IDLE;
-			trajectory_type = 0;
-		}
-		break;
-	}
-
-}
-
-void PID(float setposition) {
-
-	current_pos = PosY;
-	current_velocity = (current_pos - previous_pos) / (pid_us / 1000000.0);
-	previous_pos = current_pos;
-
-	if (pos_f < 0) {
-		pos_f = 0;
-	} else if (pos_f > 700) {
-		pos_f = 700;
-	}
-
-	Error = setposition - PosY;
-
-	if (!((Dutyfeedback >= Max_Counter_PWM)
-			&& ((Error >= 0 && Intregral >= 0) || (Error < 0 && Intregral < 0)))) {
-		Intregral = Intregral + Error;
-	}
-
-	Dutyfeedback = (Kp * Error) + (Kd * ((Error - Last_Error) / deltaT))
-			+ (Intregral * Ki);
-
-	if (Dutyfeedback >= Max_Counter_PWM * 0.7) {
-		Dutyfeedback = Max_Counter_PWM * 0.7;
-	} else if (Dutyfeedback <= Max_Counter_PWM * -0.7) {
-		Dutyfeedback = Max_Counter_PWM * -0.7;
-	}
-
-	if (Dutyfeedback < 0) {
-		dir = -1;
-	} else if (Dutyfeedback > 0) {
-		dir = 1;
-	}
-
-	if (Error > 1.0) {
-		Dutyfeedback += 1 * Kp; //230
-	} else if (Error < -1.0) {
-		Dutyfeedback -= 1 * Kp;
-	}
-
-	Dutyfeedback = fabs(Dutyfeedback);
-
-//	if(PosY != x){
-//		State_PID = 1;
-//		State = PID_TEST;
-//	}
-	motor(Dutyfeedback, dir);
-	Last_Error = Error;
-//	if (PosY >= pos_f * 1.01) {
-//		overshoot_check = 1;
-//	} pos_f >= PosY - 0.2 && pos_f <= PosY + 0.2
-
-	if (pos_f - PosY <= 0.2 && pos_f - PosY >= -0.2) {
-		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
-//		HAL_Delay(500);
-//		overshoot_check = 0;
-		Intregral = 0;
-		Dutyfeedback = 0;
-		v = 0;
-		a = 0;
-
-		if ((position_index + 2) % 2 == 0) {
-			state_laser_test = 3;
-		} else if ((position_index + 2) % 2 == 1) {
-			state_laser_test = 4;
-		}
-
-		if (position_index < 17) {
-			position_index++;
-			read_pos();
-
-			pos_f = position_test[position_index];
-			State = TRAJECT_GEN;
-			State_PID = 0;
-		} else {
-			State_PID = 2;
-			position_index = 0;
-			State = INIT_HOMING;
-		}
-
-	}
-
-//	}
-}
-
-void EndEffector_Event(char EndEffector_State) {
-	if (hi2c2.State == HAL_I2C_STATE_READY) {
-		switch (EndEffector_State) {
-		case Init:
-
-			break;
-
-		case Test_Start:
-			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Test_Start_data,
-					2, 10000);
-			EndEffector_State = Init;
-			break;
-
-		case Test_Stop:
-			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Test_Stop_data, 2,
-					10000);
-			EndEffector_State = Init;
-			break;
-
-		case Reset:
-			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Reset_data, 4,
-					10000);
-			EndEffector_State = Init;
-			break;
-		case In_Emergency:
-			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, In_Emergency_data,
-					1, 10000);
-			EndEffector_State = Init;
-			break;
-		case Out_Emergency:
-			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1,
-					Out_Emergency_data, 4, 10000);
-			EndEffector_State = Init;
-			break;
-		case Run_Mode:
-			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Run_Mode_data, 2,
-					10000);
-			EndEffector_State = Init;
-			break;
-		case Close_Run_Mode:
-			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1,
-					Close_Run_Mode_data, 2, 10000);
-			EndEffector_State = Init;
-			break;
-
-		case Pick:
-			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Pick_data, 2,
-					10000);
-			EndEffector_State = Init;
-			break;
-		case Place:
-
-			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Place_data, 2,
-					10000);
-			EndEffector_State = Init;
-			break;
-		case Read:
-			HAL_I2C_Master_Receive(&hi2c2, End_Address << 1, Read_data, 1,
-					10000);
-			break;
-		}
-
-	}
-}
-
-void Calculate_Position(float x_c1, float x_c2, float x_c3, float y_c1,
-		float y_c2, float y_c3) {
-	int i = 0;
-//Parameter use in Equation
-//Trigonometry
-	float a = x_c2 - x_c1;
-	float b = y_c2 - y_c1;
-	float c = sqrt((a * a) + (b * b));
-//float cos_zeta = a / c;
-	float sin_zeta = b / c;
-//Calculate
-	for (i = 0; i < 3; i++) {
-		q = floor((i + 1) / 3);
-		imod3 = (i + 1) % 3;
-		//Position of hole then not rotation
-		x_pre_final[i] = x_c1 + (50 - (20 * ((2 - (2 * q)) / (imod3 + q))));
-		y_pre_final[i] = y_c[0] - (40 - (15 * ((2 - (2 * q)) / (imod3 + q))));
-		//Position when rotation 25
-		x_final_joy[i] = x_pre_final[i] + (15 * sin_zeta);
-		y_final[i] = y_pre_final[i] + (20 * sin_zeta);
-	}
-//Second Row
-	x_final_joy[3] = x_pre_final[0] + (15 * 2 * sin_zeta);
-	y_final[3] = y_pre_final[0] + (20 * 2 * sin_zeta);
-	x_final_joy[4] = x_pre_final[1] + (15 * 2 * sin_zeta);
-	y_final[4] = y_pre_final[1] + (20 * 2 * sin_zeta);
-	x_final_joy[5] = x_pre_final[2] + (15 * 2 * sin_zeta);
-	y_final[5] = y_pre_final[2] + (20 * 2 * sin_zeta);
-//Third Row
-	x_final_joy[6] = x_pre_final[0] + (15 * 3 * sin_zeta);
-	y_final[6] = y_pre_final[0] + (20 * 3 * sin_zeta);
-	x_final_joy[7] = x_pre_final[1] + (15 * 3 * sin_zeta);
-	y_final[7] = y_pre_final[1] + (20 * 3 * sin_zeta);
-	x_final_joy[8] = x_pre_final[2] + (15 * 3 * sin_zeta);
-	y_final[8] = y_pre_final[2] + (20 * 3 * sin_zeta);
-}
-
-void JoyStickControl() {
-
-	read_pos();
-
-	HAL_GPIO_WritePin(JoyStick_SS_PIN_GPIO_Port, JoyStick_SS_PIN_Pin, 0);
-	HAL_SPI_TransmitReceive(&hspi3, TX, RX, 10, 30);
-	HAL_GPIO_WritePin(JoyStick_SS_PIN_GPIO_Port, JoyStick_SS_PIN_Pin, 1);
-
-	if (RX[3] == 0xFE && RX_last == 0xFF) { //Select Speed Button
-		if (state_motor == 1) {
-			state_motor = 0;
-		} else if (state_motor == 0) {
-			state_motor = 1;
-		}
-	} else if (RX[4] == 0xBF && button_last == 0xFF) { //X Button
-
-		if (y_count >= 4) {
-			motor(0, 0);
-		} else {
-			y_count += 1;
-		}
-		y_c[y_count] = PosY;
-
-	} else if (RX[4] == 0xEF && button_last == 0xFF) {
-		workState = 1;
-		State = INIT_HOMING;
-	}
-
-//motor speed Select
-	switch (state_motor) {
-	case 0:
-		if (RX[3] == 0xFF) //Not be push
-			motor(0, 1);
-		else if (RX[3] == 0xEF) //UP
-			motor(fast, -1);
-		else if (RX[3] == 0xBF) //Down
-			motor(fast, 1);
-		break;
-	case 1:
-		if (RX[3] == 0xFF) //Not be push
-			motor(0, 1);
-		else if (RX[3] == 0xEF) //UP
-			motor(slow, -1);
-		else if (RX[3] == 0xBF) //Down
-			motor(slow, 1);
-		break;
-	}
-
-//X-axis
-//		else if (RX[3] == 0x7F) //Left
-//			printf("Left \r\n");
-//		else if (RX[3] == 0xDF) //Right
-//			printf("Right \r\n");
-	RX_last = RX[3];
-	button_last = RX[4];
-
-}
-
-void Init_Homing() {
-	static uint16_t state_homing = 0;
-	switch (state_homing) {
-	case 0:
-		if (HAL_GPIO_ReadPin(Photoelectric_sensor_3_GPIO_Port,
-		Photoelectric_sensor_3_Pin) == 0) {
-			__HAL_TIM_SET_COUNTER(&htim2, 0);
-			motor(0, 1);
-			state_homing = 1;
-		} else {
-			motor(Max_Counter_PWM * 0.25, -1);
-		}
-		break;
-
-	case 1:
-		if (HAL_GPIO_ReadPin(Photoelectric_sensor_2_GPIO_Port,
-		Photoelectric_sensor_2_Pin) == 0) {
-			motor(0, 1);
-			HAL_Delay(200);
-			__HAL_TIM_SET_COUNTER(&htim2, 23893);
-			QEIReadRaw = __HAL_TIM_GET_COUNTER(&htim2);
-			PosY = QEIReadRaw * (120.0 / 8192.0);
-			pos_i = PosY;
-			pos_f = position_test[position_index];
-			State_PID = 2;
-			state_homing = 0;
-			EndEffector_Event(Run_Mode);
-			State = IDLE;
-		} else {
-			motor(Max_Counter_PWM * 0.18, 1);
-		}
-		break;
-	}
-}
-
-void Test_Range() {
-	read_pos();
-
-	static uint16_t state_test_range = 0;
-	switch (state_test_range) {
-	case 0:
-		if (HAL_GPIO_ReadPin(Photoelectric_sensor_3_GPIO_Port,
-		Photoelectric_sensor_3_Pin) == 0) {
-			motor(0, 1);
-			HAL_Delay(500);
-			__HAL_TIM_SET_COUNTER(&htim2, 0);
-			HAL_Delay(500);
-			state_test_range = 1;
-		} else {
-			motor(Max_Counter_PWM * 0.25, -1);
-		}
-		break;
-
-	case 1:
-		if (HAL_GPIO_ReadPin(Photoelectric_sensor_1_GPIO_Port,
-		Photoelectric_sensor_1_Pin) == 0) {
-			motor(0, 1);
-			HAL_Delay(200);
-//			__HAL_TIM_SET_COUNTER(&htim2, 23893);
-		} else {
-			motor(Max_Counter_PWM * 0.2, 1);
-		}
-		break;
-	}
-}
-
 void Photo_IT() {
 	switch (state_IT) {
 	case 0:
@@ -1326,43 +853,25 @@ void Photo_IT() {
 	}
 }
 
-void motor(uint32_t speed, int DIR) {
-	if (DIR == -1) {
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, SET); //1
-
-		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, speed);
-
-	} else if (DIR == 1) {
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, RESET); //0
-		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, speed);
-
-	}
-}
-
-void read_pos() {
-	QEIReadRaw = __HAL_TIM_GET_COUNTER(&htim2);
-	PosY = QEIReadRaw * (120.0 / 8192.0);
-}
-
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
-	if (GPIO_Pin == Photoelectric_sensor_1_Pin) {
-		if (State == PID_STATE || State == CALIBRATE) {
-			Dutyfeedback = 0;
-			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
-			state_IT = 1;
-			State = EMERGENCY_LIMIT;
-		}
-	}
-
-	if (GPIO_Pin == Photoelectric_sensor_3_Pin) {
-		if (State == PID_STATE || State == CALIBRATE) {
-			Dutyfeedback = 0;
-			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
-			state_IT = 1;
-			State = EMERGENCY_LIMIT;
-		}
-	}
+//	if (GPIO_Pin == Photoelectric_sensor_1_Pin) {
+//		if (State == PID_STATE || State == CALIBRATE) {
+//			Dutyfeedback = 0;
+//			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+//			state_IT = 1;
+//			State = EMERGENCY_LIMIT;
+//		}
+//	}
+//
+//	if (GPIO_Pin == Photoelectric_sensor_3_Pin) {
+//		if (State == PID_STATE || State == CALIBRATE) {
+//			Dutyfeedback = 0;
+//			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+//			state_IT = 1;
+//			State = EMERGENCY_LIMIT;
+//		}
+//	}
 
 //	if (GPIO_Pin == Emergency_Pin) {
 //		Dutyfeedback = 0;
@@ -1372,15 +881,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 //	}
 }
 
+uint64_t micros() {
+	return __HAL_TIM_GET_COUNTER(&htim5) + _micros;
+}
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim5) {
 		_micros += UINT32_MAX;
 	}
 }
 
-uint64_t micros() {
-	return __HAL_TIM_GET_COUNTER(&htim5) + _micros;
-}
 /* USER CODE END 4 */
 
 /**
