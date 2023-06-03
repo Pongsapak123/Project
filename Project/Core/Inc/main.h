@@ -69,12 +69,12 @@ void Error_Handler(void);
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3
 #define USART_RX_GPIO_Port GPIOA
-#define Switch_Relay_1_Pin GPIO_PIN_5
-#define Switch_Relay_1_GPIO_Port GPIOA
-#define Switch_Relay_2_Pin GPIO_PIN_6
-#define Switch_Relay_2_GPIO_Port GPIOA
-#define Switch_Relay_3_Pin GPIO_PIN_7
+#define Switch_Relay_3_Pin GPIO_PIN_5
 #define Switch_Relay_3_GPIO_Port GPIOA
+#define Switch_Relay_1_Pin GPIO_PIN_6
+#define Switch_Relay_1_GPIO_Port GPIOA
+#define Switch_Relay_2_Pin GPIO_PIN_7
+#define Switch_Relay_2_GPIO_Port GPIOA
 #define Photoelectric_sensor_2_Pin GPIO_PIN_2
 #define Photoelectric_sensor_2_GPIO_Port GPIOB
 #define Photoelectric_sensor_2_EXTI_IRQn EXTI2_IRQn

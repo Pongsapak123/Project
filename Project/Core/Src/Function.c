@@ -62,8 +62,8 @@ void Init_Homing() {
 		if (HAL_GPIO_ReadPin(Photoelectric_sensor_2_GPIO_Port,
 		Photoelectric_sensor_2_Pin) == 0) {
 			motor(0, 1);
-			HAL_Delay(200);
-			__HAL_TIM_SET_COUNTER(&htim2, 23893);
+			HAL_Delay(400);
+			__HAL_TIM_SET_COUNTER(&htim2, 0);
 			QEIReadRaw = __HAL_TIM_GET_COUNTER(&htim2);
 			PosY = QEIReadRaw * (120.0 / 8192.0);
 			pos_i = PosY;

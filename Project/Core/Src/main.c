@@ -89,7 +89,7 @@ float Dutyfeedback;
 uint8_t State_PID = 2;
 ////////////////////////////////
 
-int state_laser_test = 0;
+int state_laser = 0;
 /////////////////////////////
 
 uint64_t _micros = 0;
@@ -98,11 +98,16 @@ ModbusHandleTypedef hmodbus;
 u16u8_t registerFrame[200];
 
 ////////////read sensor/////////
-int photo1;
-int photo2;
-int photo3;
-int emer;
+struct GPIO_Check {
+	int photo1;
+	int photo2;
+	int photo3;
+	int emer;
+	int ramp;
+} GPIO_test;
 
+int PHOTO1;
+int PHOTO2;
 int32_t QEIReadRaw;
 float PosY;
 ////////////read sensor/////////
@@ -113,8 +118,16 @@ float position_test[18] = { 99.34, 544.89, 119.34, 564.89, 139.64, 584.89,
 		564.89, 139.64, 584.89, };
 
 enum State_Machine {
-	INIT, INIT_HOMING, CALIBRATE, TRAJECT_GEN, PID_STATE, EMERGENCY_LIMIT, IDLE
-} State = INIT;
+	INIT,
+	INIT_HOMING,
+	SETPICKTRAY,
+	SETPLACETRAY,
+	TRAJECT_GEN,
+	PID_STATE,
+	EMERGENCY_LIMIT,
+	IDLE,
+	SENSOR_CHECK
+} State = SENSOR_CHECK;
 
 enum Laser {
 	Init,
@@ -129,6 +142,32 @@ enum Laser {
 	Place,
 	Read,
 } EndEffector_State = Init;
+
+struct BaseSystemBit {
+	int SetPickTray;
+	int SetPlaceTray;
+	int Home;
+	int RunTrayMode;
+	int RunPointMode;
+};
+
+struct EndEffectorStatusBit {
+	int LaserOff;
+	int LaserOn;
+	int GripperPower;
+	int GripperPicking;
+	int GripperPlacing;
+};
+
+struct yaxisMovingStatus {
+	int JogPick;
+	int JogPlease;
+	int Home;
+	int GoPick;
+	int GoPlace;
+	int Gopoint;
+};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -212,6 +251,13 @@ int main(void) {
 	hmodbus.RegisterSize = 200;
 	Modbus_init(&hmodbus, registerFrame);
 
+	struct BaseSystemBit BaseSystemStatusData = { .SetPickTray = 1,
+			.SetPlaceTray = 2, .Home = 4, .RunTrayMode = 8, .RunPointMode = 16 };
+
+	struct EndEffectorStatusBit EndEffectorStatusData = { .LaserOff = 0,
+			.LaserOn = 1, .GripperPower = 2, .GripperPicking = 6,
+			.GripperPlacing = 10 };
+
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -231,98 +277,178 @@ int main(void) {
 		if (HAL_GetTick() >= timestamp_heartbeat) {
 			timestamp_heartbeat = HAL_GetTick() + 200;
 
-			registerFrame[0x00].U16 = 22881;
-			registerFrame[0x11].U16 = PosY * 10;
-		}
+			Heartbeat_Protocol= 22881;
 
-		switch (state_laser_test) {
-		case 0:
-			break;
-		case 1:
-			EndEffector_Event(Test_Start);
-			state_laser_test = 0;
-			break;
-		case 2:
-			EndEffector_Event(Run_Mode);
-			state_laser_test = 0;
-			break;
-		case 3:
-			EndEffector_Event(Pick);
-			pos_i = PosY;
-//			x_axis_Target_Position= 1400;
-			state_laser_test = 0;
-			HAL_Delay(2000);
-//			x_axis_Moving_Status= 2;
-			break;
-		case 4:
-			EndEffector_Event(Place);
-			pos_i = PosY;
-//			x_axis_Target_Position = 0;
-			state_laser_test = 0;
-			HAL_Delay(2000);
-//			x_axis_Moving_Status= 2;
-			break;
-		case 5:
-			EndEffector_Event(Reset);
-			state_laser_test = 0;
-			break;
-		case 6:
-			EndEffector_Event(Test_Stop);
-			state_laser_test = 0;
+			y_axis_Actual_Position= ((int32_t) PosY) * 10;
+			y_axis_Actual_Speed= 0;
+			y_axis_Actual_Acceleration= 0;
 		}
 
 		switch (State) {
 		case INIT:
-			read_pos();
-			photo1 = HAL_GPIO_ReadPin(Photoelectric_sensor_1_GPIO_Port,
-			Photoelectric_sensor_1_Pin);
-			photo2 = HAL_GPIO_ReadPin(Photoelectric_sensor_2_GPIO_Port,
-			Photoelectric_sensor_2_Pin);
-			photo3 = HAL_GPIO_ReadPin(Photoelectric_sensor_3_GPIO_Port,
-			Photoelectric_sensor_3_Pin);
-			emer = HAL_GPIO_ReadPin(Emergency_GPIO_Port, Emergency_Pin);
-
-			if (go_next == 1) {
-				y_axis_Moving_Status= 2;
-				x_axis_Target_Position = 1400;
-				x_axis_Target_Speed = 2500;
-				x_axis_Target_Acceleration_Time = 2;
-				State = INIT_HOMING;
-			}
+			State = INIT_HOMING;
 			break;
-			case INIT_HOMING:
+		case INIT_HOMING:
 			Init_Homing();
 			break;
-			case CALIBRATE:
+		case IDLE:
+
+			if (End_Effector_Status== EndEffectorStatusData.LaserOn) {
+				EndEffector_Event(Test_Start);
+			} else if(End_Effector_Status == EndEffectorStatusData.LaserOff) {
+				EndEffector_Event(Test_Stop);
+			} else if (End_Effector_Status == EndEffectorStatusData.GripperPower) {
+				EndEffector_Event(Run_Mode);
+			}
+
+			if (End_Effector_Status == EndEffectorStatusData.GripperPicking) {
+				EndEffector_Event(Run_Mode);EndEffector_Event(Pick);
+				End_Effector_Status = EndEffectorStatusData.GripperPower;
+			} else if (End_Effector_Status == EndEffectorStatusData.GripperPlacing) {
+				EndEffector_Event(Run_Mode);EndEffector_Event(Place);
+				End_Effector_Status = EndEffectorStatusData.GripperPower;
+			}
+
+			if(Base_System_Status == BaseSystemStatusData.SetPickTray) {
+				EndEffector_Event(Test_Start);
+				Base_System_Status = 0;
+				State = SETPICKTRAY;
+			}
+
+			break;
+
+			case SETPICKTRAY:
+
 			JoyStickControl();
+
 			break;
-			case TRAJECT_GEN:
-			read_pos();
-			Trajectory_Gen(pos_i, pos_f, 945, 4161);
-			State = PID_STATE;
-			break;
-			case PID_STATE:
-			if (GetTicku >= timestamp_traject) {
-				timestamp_traject = GetTicku + traject_us;
-				Trajectory_Eva();
-				read_pos();
-				PID(x);
-			}
-			if (State_PID == 1) {
-				motor(0, 1);
-				State = IDLE;
-			}
-			break;
-			case IDLE:
-			motor(0, 1);
-			if (State_PID == 0) {
-				State = TRAJECT_GEN;
-			}
-			break;
+
 			case EMERGENCY_LIMIT:
+
 			Photo_IT();
+
 			break;
+
+			case SENSOR_CHECK:
+
+			read_pos();
+			GPIO_test.photo1 = HAL_GPIO_ReadPin(Photoelectric_sensor_1_GPIO_Port,Photoelectric_sensor_1_Pin);
+			GPIO_test.photo2 = HAL_GPIO_ReadPin(Photoelectric_sensor_2_GPIO_Port,Photoelectric_sensor_2_Pin);
+			GPIO_test.photo3 = HAL_GPIO_ReadPin(Photoelectric_sensor_3_GPIO_Port,Photoelectric_sensor_3_Pin);
+			GPIO_test.emer = HAL_GPIO_ReadPin(Emergency_GPIO_Port,Emergency_Pin);
+
+			if (GPIO_test.ramp == 1) {
+				HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin,
+				SET);
+				HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin,
+				RESET);
+				HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
+				RESET);
+			} else if (GPIO_test.ramp == 2) {
+				HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin,
+				RESET);
+				HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin,
+				SET);
+				HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
+				RESET);
+			} else if (GPIO_test.ramp == 3) {
+				HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin,
+				RESET);
+				HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin,
+				RESET);
+				HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
+				SET);
+			} else {
+				HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin,
+				RESET);
+				HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin,
+				RESET);
+				HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
+				RESET);
+			}
+			break;
+
 		}
+
+//		switch (State) {
+//		case INIT:
+//			read_pos();
+//			GPIO_test.photo1 = HAL_GPIO_ReadPin(
+//			Photoelectric_sensor_1_GPIO_Port,
+//			Photoelectric_sensor_1_Pin);
+//			GPIO_test.photo2 = HAL_GPIO_ReadPin(
+//			Photoelectric_sensor_2_GPIO_Port,
+//			Photoelectric_sensor_2_Pin);
+//			GPIO_test.photo3 = HAL_GPIO_ReadPin(
+//			Photoelectric_sensor_3_GPIO_Port,
+//			Photoelectric_sensor_3_Pin);
+//			GPIO_test.emer = HAL_GPIO_ReadPin(Emergency_GPIO_Port,
+//			Emergency_Pin);
+//
+//			if (GPIO_test.ramp == 1) {
+//				HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin,
+//						SET);
+//				HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin,
+//						RESET);
+//				HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
+//						RESET);
+//			} else if (GPIO_test.ramp == 2) {
+//				HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin,
+//						RESET);
+//				HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin,
+//						SET);
+//				HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
+//						RESET);
+//			} else if (GPIO_test.ramp == 3) {
+//				HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin,
+//						RESET);
+//				HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin,
+//						RESET);
+//				HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
+//						SET);
+//			} else {
+//				HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin,
+//						RESET);
+//				HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin,
+//						RESET);
+//				HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
+//						RESET);
+//			}
+////			State = INIT_HOMING;
+//			break;
+//		case INIT_HOMING:
+//			Init_Homing();
+//			break;
+//		case CALIBRATE:
+//			JoyStickControl();
+//			break;
+//		case TRAJECT_GEN:
+//			read_pos();
+//			Trajectory_Gen(pos_i, pos_f, 945, 4161);
+//			State = PID_STATE;
+//			break;
+//		case PID_STATE:
+//			if (GetTicku >= timestamp_traject) {
+//				timestamp_traject = GetTicku + traject_us;
+//				Trajectory_Eva();
+//				read_pos();
+//				PID(x);
+//			}
+//			if (State_PID == 1) {
+//				motor(0, 1);
+//				State = IDLE;
+//			}
+//			break;
+//		case IDLE:
+//			motor(0, 1);
+//			if (State_PID == 0) {
+//				State = TRAJECT_GEN;
+//			}
+//			break;
+//		case EMERGENCY_LIMIT:
+//			Photo_IT();
+//			break;
+//		}
 
 		if (Re == 1) {
 			NVIC_SystemReset();
@@ -786,7 +912,7 @@ static void MX_GPIO_Init(void) {
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOA,
-			Switch_Relay_1_Pin | Switch_Relay_2_Pin | Switch_Relay_3_Pin
+			Switch_Relay_3_Pin | Switch_Relay_1_Pin | Switch_Relay_2_Pin
 					| DIR_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
@@ -799,9 +925,9 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-	/*Configure GPIO pins : Switch_Relay_1_Pin Switch_Relay_2_Pin Switch_Relay_3_Pin DIR_Pin */
-	GPIO_InitStruct.Pin = Switch_Relay_1_Pin | Switch_Relay_2_Pin
-			| Switch_Relay_3_Pin | DIR_Pin;
+	/*Configure GPIO pins : Switch_Relay_3_Pin Switch_Relay_1_Pin Switch_Relay_2_Pin DIR_Pin */
+	GPIO_InitStruct.Pin = Switch_Relay_3_Pin | Switch_Relay_1_Pin
+			| Switch_Relay_2_Pin | DIR_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

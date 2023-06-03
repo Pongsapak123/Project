@@ -73,7 +73,7 @@ double t_acceleration = 0;
 double t_final = 0;
 double t_triangle = 0;
 
-extern int state_laser_test;
+extern int state_laser;
 
 extern enum State_Machine {
 	INIT, INIT_HOMING, CALIBRATE, TRAJECT_GEN, PID_STATE, EMERGENCY_LIMIT, IDLE
@@ -132,15 +132,14 @@ void PID(float setposition) {
 		a = 0;
 
 		if ((position_index + 2) % 2 == 0) {
-			state_laser_test = 3;
+			state_laser = 3;
 		} else if ((position_index + 2) % 2 == 1) {
-			state_laser_test = 4;
+			state_laser = 4;
 		}
 
 		if (position_index < 17) {
 			position_index++;
-			read_pos();
-
+			pos_i = PosY;
 			pos_f = position_test[position_index];
 			State = TRAJECT_GEN;
 			State_PID = 0;
