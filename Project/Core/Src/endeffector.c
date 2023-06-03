@@ -46,56 +46,56 @@ void EndEffector_Event(char EndEffector_State) {
 
 		case Test_Start:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Test_Start_data,
-					2, 10000);
+					2, 1000);
 			EndEffector_State = Init;
 			break;
 
 		case Test_Stop:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Test_Stop_data, 2,
-					10000);
+					1000);
 			EndEffector_State = Init;
 			break;
 
 		case Reset:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Reset_data, 4,
-					10000);
+					1000);
 			EndEffector_State = Init;
 			break;
 		case In_Emergency:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, In_Emergency_data,
-					1, 10000);
+					1, 1000);
 			EndEffector_State = Init;
 			break;
 		case Out_Emergency:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1,
-					Out_Emergency_data, 4, 10000);
+					Out_Emergency_data, 4, 1000);
 			EndEffector_State = Init;
 			break;
 		case Run_Mode:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Run_Mode_data, 2,
-					10000);
+					1000);
 			EndEffector_State = Init;
 			break;
 		case Close_Run_Mode:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1,
-					Close_Run_Mode_data, 2, 10000);
+					Close_Run_Mode_data, 2, 1000);
 			EndEffector_State = Init;
 			break;
 
 		case Pick:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Pick_data, 2,
-					10000);
+					1000);
 			EndEffector_State = Init;
 			break;
 		case Place:
 
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Place_data, 2,
-					10000);
+					1000);
 			EndEffector_State = Init;
 			break;
 		case Read:
 			HAL_I2C_Master_Receive(&hi2c2, End_Address << 1, Read_data, 1,
-					10000);
+					1000);
 			break;
 		}
 

@@ -108,9 +108,9 @@ float PosY;
 ////////////read sensor/////////
 
 int position_index = 0;
-float position_test[18] = { 538.0, 142.9, 518.7, 122.6, 498.1, 102.1, 538.0,
-		142.9, 518.7, 122.6, 498.1, 102.12, 538.0, 142.9, 518.7, 122.6, 498.1,
-		102.1 };
+float position_test[18] = { 99.34, 544.89, 119.34, 564.89, 139.64, 584.89,
+		99.34, 544.89, 119.34, 564.89, 139.64, 584.89, 99.34, 544.89, 119.34,
+		564.89, 139.64, 584.89, };
 
 enum State_Machine {
 	INIT, INIT_HOMING, CALIBRATE, TRAJECT_GEN, PID_STATE, EMERGENCY_LIMIT, IDLE
@@ -194,7 +194,6 @@ int main(void) {
 	/* USER CODE BEGIN 2 */
 	EndEffector_Event(Reset);
 	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_1 | TIM_CHANNEL_2);
-
 	HAL_TIM_Base_Start_IT(&htim3);
 	HAL_TIM_Base_Start(&htim1);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
@@ -213,9 +212,6 @@ int main(void) {
 	hmodbus.RegisterSize = 200;
 	Modbus_init(&hmodbus, registerFrame);
 
-	y_axis_Moving_Status = 2;
-	registerFrame[0x43].U16 = 2;
-	registerFrame[0x42].U16 = 2500;
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -225,7 +221,9 @@ int main(void) {
 		static uint64_t timestamp_traject = 0;
 		static uint64_t timestamp_heartbeat = 0;
 		int64_t GetTicku = micros();
+
 		Modbus_Protocal_Worker();
+
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
@@ -234,7 +232,7 @@ int main(void) {
 			timestamp_heartbeat = HAL_GetTick() + 200;
 
 			registerFrame[0x00].U16 = 22881;
-
+			registerFrame[0x11].U16 = PosY * 10;
 		}
 
 		switch (state_laser_test) {
@@ -251,16 +249,18 @@ int main(void) {
 		case 3:
 			EndEffector_Event(Pick);
 			pos_i = PosY;
-			registerFrame[0x41].U16 = 1400;
+//			x_axis_Target_Position= 1400;
 			state_laser_test = 0;
-			HAL_Delay(1000);
+			HAL_Delay(2000);
+//			x_axis_Moving_Status= 2;
 			break;
 		case 4:
 			EndEffector_Event(Place);
 			pos_i = PosY;
-			registerFrame[0x41].U16 = 0;
+//			x_axis_Target_Position = 0;
 			state_laser_test = 0;
-			HAL_Delay(1000);
+			HAL_Delay(2000);
+//			x_axis_Moving_Status= 2;
 			break;
 		case 5:
 			EndEffector_Event(Reset);
@@ -281,22 +281,27 @@ int main(void) {
 			photo3 = HAL_GPIO_ReadPin(Photoelectric_sensor_3_GPIO_Port,
 			Photoelectric_sensor_3_Pin);
 			emer = HAL_GPIO_ReadPin(Emergency_GPIO_Port, Emergency_Pin);
-			if(go_next == 1){
+
+			if (go_next == 1) {
+				y_axis_Moving_Status= 2;
+				x_axis_Target_Position = 1400;
+				x_axis_Target_Speed = 2500;
+				x_axis_Target_Acceleration_Time = 2;
 				State = INIT_HOMING;
 			}
 			break;
-		case INIT_HOMING:
+			case INIT_HOMING:
 			Init_Homing();
 			break;
-		case CALIBRATE:
+			case CALIBRATE:
 			JoyStickControl();
 			break;
-		case TRAJECT_GEN:
+			case TRAJECT_GEN:
 			read_pos();
 			Trajectory_Gen(pos_i, pos_f, 945, 4161);
 			State = PID_STATE;
 			break;
-		case PID_STATE:
+			case PID_STATE:
 			if (GetTicku >= timestamp_traject) {
 				timestamp_traject = GetTicku + traject_us;
 				Trajectory_Eva();
@@ -308,13 +313,13 @@ int main(void) {
 				State = IDLE;
 			}
 			break;
-		case IDLE:
+			case IDLE:
 			motor(0, 1);
 			if (State_PID == 0) {
 				State = TRAJECT_GEN;
 			}
 			break;
-		case EMERGENCY_LIMIT:
+			case EMERGENCY_LIMIT:
 			Photo_IT();
 			break;
 		}
@@ -781,15 +786,15 @@ static void MX_GPIO_Init(void) {
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOA,
-	Switch_Relay_1_Pin | Switch_Relay_2_Pin | Switch_Relay_3_Pin | DIR_Pin,
-			GPIO_PIN_RESET);
+			Switch_Relay_1_Pin | Switch_Relay_2_Pin | Switch_Relay_3_Pin
+					| DIR_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(JoyStick_SS_PIN_GPIO_Port, JoyStick_SS_PIN_Pin,
 			GPIO_PIN_RESET);
 
-	/*Configure GPIO pins : B1_Pin Emergency_Pin Photoelectric_sensor_3_Pin */
-	GPIO_InitStruct.Pin = B1_Pin | Emergency_Pin | Photoelectric_sensor_3_Pin;
+	/*Configure GPIO pins : B1_Pin Emergency_Pin Photoelectric_sensor_1_Pin */
+	GPIO_InitStruct.Pin = B1_Pin | Emergency_Pin | Photoelectric_sensor_1_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
@@ -802,9 +807,9 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-	/*Configure GPIO pins : Photoelectric_sensor_2_Pin Photoelectric_sensor_1_Pin */
+	/*Configure GPIO pins : Photoelectric_sensor_2_Pin Photoelectric_sensor_3_Pin */
 	GPIO_InitStruct.Pin = Photoelectric_sensor_2_Pin
-			| Photoelectric_sensor_1_Pin;
+			| Photoelectric_sensor_3_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -855,23 +860,23 @@ void Photo_IT() {
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
-//	if (GPIO_Pin == Photoelectric_sensor_1_Pin) {
-//		if (State == PID_STATE || State == CALIBRATE) {
-//			Dutyfeedback = 0;
-//			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
-//			state_IT = 1;
-//			State = EMERGENCY_LIMIT;
-//		}
-//	}
-//
-//	if (GPIO_Pin == Photoelectric_sensor_3_Pin) {
-//		if (State == PID_STATE || State == CALIBRATE) {
-//			Dutyfeedback = 0;
-//			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
-//			state_IT = 1;
-//			State = EMERGENCY_LIMIT;
-//		}
-//	}
+	if (GPIO_Pin == Photoelectric_sensor_1_Pin) {
+		if (State == PID_STATE) {
+			Dutyfeedback = 0;
+			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+			state_IT = 1;
+			State = EMERGENCY_LIMIT;
+		}
+	}
+
+	if (GPIO_Pin == Photoelectric_sensor_3_Pin) {
+		if (State == PID_STATE) {
+			Dutyfeedback = 0;
+			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+			state_IT = 1;
+			State = EMERGENCY_LIMIT;
+		}
+	}
 
 //	if (GPIO_Pin == Emergency_Pin) {
 //		Dutyfeedback = 0;

@@ -18,10 +18,10 @@
 
 #define Heartbeat_Protocol 0x00
 #define y_axis_Moving_Status registerFrame[0x10].U16
-#define x_axis_Moving_Status 0x40
-#define x_axis_Target_Position 0x41
-#define x_axis_Target_Speed 0x42
-#define x_axis_Target_Acceleration_Time 0x43
+#define x_axis_Moving_Status registerFrame[0x40].U16
+#define x_axis_Target_Position registerFrame[0x41].U16
+#define x_axis_Target_Speed registerFrame[0x42].U16
+#define x_axis_Target_Acceleration_Time registerFrame[0x43].U16
 
 void Init_Homing();
 void Photo_IT();
@@ -30,6 +30,7 @@ void read_pos();
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
+
 void Test_Range();
 
 #endif /* INC_FUNCTION_H_ */

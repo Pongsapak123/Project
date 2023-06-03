@@ -48,8 +48,8 @@ void Init_Homing() {
 	static uint16_t state_homing = 0;
 	switch (state_homing) {
 	case 0:
-		if (HAL_GPIO_ReadPin(Photoelectric_sensor_3_GPIO_Port,
-		Photoelectric_sensor_3_Pin) == 0) {
+		if (HAL_GPIO_ReadPin(Photoelectric_sensor_1_GPIO_Port,
+		Photoelectric_sensor_1_Pin) == 0) {
 			__HAL_TIM_SET_COUNTER(&htim2, 0);
 			motor(0, 1);
 			state_homing = 1;

@@ -78,9 +78,9 @@ void Error_Handler(void);
 #define Photoelectric_sensor_2_Pin GPIO_PIN_2
 #define Photoelectric_sensor_2_GPIO_Port GPIOB
 #define Photoelectric_sensor_2_EXTI_IRQn EXTI2_IRQn
-#define Photoelectric_sensor_3_Pin GPIO_PIN_6
-#define Photoelectric_sensor_3_GPIO_Port GPIOC
-#define Photoelectric_sensor_3_EXTI_IRQn EXTI9_5_IRQn
+#define Photoelectric_sensor_1_Pin GPIO_PIN_6
+#define Photoelectric_sensor_1_GPIO_Port GPIOC
+#define Photoelectric_sensor_1_EXTI_IRQn EXTI9_5_IRQn
 #define DIR_Pin GPIO_PIN_10
 #define DIR_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
@@ -91,9 +91,9 @@ void Error_Handler(void);
 #define JoyStick_SS_PIN_GPIO_Port GPIOD
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
-#define Photoelectric_sensor_1_Pin GPIO_PIN_8
-#define Photoelectric_sensor_1_GPIO_Port GPIOB
-#define Photoelectric_sensor_1_EXTI_IRQn EXTI9_5_IRQn
+#define Photoelectric_sensor_3_Pin GPIO_PIN_8
+#define Photoelectric_sensor_3_GPIO_Port GPIOB
+#define Photoelectric_sensor_3_EXTI_IRQn EXTI9_5_IRQn
 
 /* USER CODE BEGIN Private defines */
 

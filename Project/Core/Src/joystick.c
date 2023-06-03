@@ -18,8 +18,8 @@ uint8_t i = 0;
 uint8_t workState = 0;
 
 //Motor
-uint16_t fast = 65536 * 0.23;
-uint16_t slow = 65536 * 0.23;
+uint16_t fast = 65536 * 0.35;
+uint16_t slow = 65536 * 0.18;
 uint8_t state_motor = 0; //0 is slow and 1 is fast
 
 uint8_t RX_last = 0x00;
@@ -32,7 +32,7 @@ extern float PosY;
 
 extern enum State_Machine {
 	INIT, INIT_HOMING, CALIBRATE, TRAJECT_GEN, PID_STATE, EMERGENCY_LIMIT, IDLE
-} State ;
+} State;
 
 int imod3;
 float x_pre_final[9];
@@ -48,7 +48,7 @@ void JoyStickControl() {
 	HAL_SPI_TransmitReceive(&hspi3, TX, RX, 10, 30);
 	HAL_GPIO_WritePin(JoyStick_SS_PIN_GPIO_Port, JoyStick_SS_PIN_Pin, 1);
 
-	if (RX[3] == 0xFE && RX_last == 0xFF) { //Select Speed Button
+	if (RX[4] == 0xfe && RX_last == 0xff) { //Select Speed Button
 		if (state_motor == 1) {
 			state_motor = 0;
 		} else if (state_motor == 0) {
@@ -71,19 +71,19 @@ void JoyStickControl() {
 //motor speed Select
 	switch (state_motor) {
 	case 0:
-		if (RX[3] == 0xFF) //Not be push
+		if (RX[3] == 0xfe) //Not be push
 			motor(0, 1);
-		else if (RX[3] == 0xEF) //UP
+		else if (RX[3] == 0xee) //UP
 			motor(fast, -1);
-		else if (RX[3] == 0xBF) //Down
+		else if (RX[3] == 0xbe) //Down
 			motor(fast, 1);
 		break;
 	case 1:
-		if (RX[3] == 0xFF) //Not be push
+		if (RX[3] == 0xfe) //Not be push
 			motor(0, 1);
-		else if (RX[3] == 0xEF) //UP
+		else if (RX[3] == 0xee) //UP
 			motor(slow, -1);
-		else if (RX[3] == 0xBF) //Down
+		else if (RX[3] == 0xbe) //Down
 			motor(slow, 1);
 		break;
 	}
@@ -93,7 +93,7 @@ void JoyStickControl() {
 //			printf("Left \r\n");
 //		else if (RX[3] == 0xDF) //Right
 //			printf("Right \r\n");
-	RX_last = RX[3];
+	RX_last = RX[4];
 	button_last = RX[4];
 
 }
