@@ -1,4 +1,4 @@
-../Core/Src/Function.c:29:6:read_pos	8	static
-../Core/Src/Function.c:34:6:motor	16	static
-../Core/Src/Function.c:47:6:Init_Homing	8	static
-../Core/Src/Function.c:82:6:Test_Range	8	static
+../Core/Src/Function.c:40:6:read_pos	8	static
+../Core/Src/Function.c:45:6:motor	16	static
+../Core/Src/Function.c:58:6:Init_Homing	8	static
+../Core/Src/Function.c:96:6:Test_Range	8	static

@@ -37,7 +37,7 @@ extern float Dutyfeedback;
 
 float Error = 0;
 float Last_Error = 0;
-float Intregral = 0;
+extern float Intregral;
 float deltaT = 0.00001;
 
 extern float PosY;
@@ -76,8 +76,16 @@ double t_triangle = 0;
 extern int state_laser;
 
 extern enum State_Machine {
-	INIT, INIT_HOMING, CALIBRATE, TRAJECT_GEN, PID_STATE, EMERGENCY_LIMIT, IDLE
-} State;
+	INIT,
+	INIT_HOMING,
+	IDLE,
+	SETPICKTRAY,
+	SETPLACETRAY,
+	RUNTRAYMODE,
+	RUNPOINTMODE,
+	EMERGENCY_LIMIT,
+	SENSOR_CHECK
+} State ;
 
 void PID(float setposition) {
 
@@ -85,10 +93,10 @@ void PID(float setposition) {
 	current_velocity = (current_pos - previous_pos) / (pid_us / 1000000.0);
 	previous_pos = current_pos;
 
-	if (pos_f < 0) {
-		pos_f = 0;
-	} else if (pos_f > 700) {
-		pos_f = 700;
+	if (pos_f < -350) {
+		pos_f = -350;
+	} else if (pos_f > 350) {
+		pos_f = 350;
 	}
 
 	Error = setposition - PosY;
@@ -124,32 +132,32 @@ void PID(float setposition) {
 	motor(Dutyfeedback, dir);
 	Last_Error = Error;
 
-	if (pos_f - PosY <= 0.2 && pos_f - PosY >= -0.2) {
-		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
-		Intregral = 0;
-		Dutyfeedback = 0;
-		v = 0;
-		a = 0;
+//	if (pos_f - PosY <= 0.2 && pos_f - PosY >= -0.2) {
+//		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+//		Intregral = 0;
+//		Dutyfeedback = 0;
+//		v = 0;
+//		a = 0;
 
-		if ((position_index + 2) % 2 == 0) {
-			state_laser = 3;
-		} else if ((position_index + 2) % 2 == 1) {
-			state_laser = 4;
-		}
+//		if ((position_index + 2) % 2 == 0) {
+//			state_laser = 3;
+//		} else if ((position_index + 2) % 2 == 1) {
+//			state_laser = 4;
+//		}
 
-		if (position_index < 17) {
-			position_index++;
-			pos_i = PosY;
-			pos_f = position_test[position_index];
-			State = TRAJECT_GEN;
-			State_PID = 0;
-		} else {
-			State_PID = 2;
-			position_index = 0;
-			State = INIT_HOMING;
-		}
+//		if (position_index < 17) {
+//			position_index++;
+//			pos_i = PosY;
+//			pos_f = position_test[position_index];
+//			State = TRAJECT_GEN;
+//			State_PID = 0;
+//		} else {
+//			State_PID = 2;
+//			position_index = 0;
+//			State = INIT_HOMING;
+//		}
 
-	}
+//	}
 
 }
 

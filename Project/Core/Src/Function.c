@@ -10,6 +10,8 @@
 #include "joystick.h"
 #include "pid_traject.h"
 #include "main.h"
+#include "ModBusRTU.h"
+
 
 extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim1;
@@ -21,9 +23,18 @@ extern float pos_f;
 extern int position_index;
 extern float position_test[18];
 extern uint8_t State_PID;
+extern u16u8_t registerFrame[200];
 
 extern enum State_Machine {
-	INIT, INIT_HOMING, CALIBRATE, TRAJECT_GEN, PID_STATE, EMERGENCY_LIMIT, IDLE
+	INIT,
+	INIT_HOMING,
+	IDLE,
+	SETPICKTRAY,
+	SETPLACETRAY,
+	RUNTRAYMODE,
+	RUNPOINTMODE,
+	EMERGENCY_LIMIT,
+	SENSOR_CHECK
 } State ;
 
 void read_pos() {
@@ -48,8 +59,8 @@ void Init_Homing() {
 	static uint16_t state_homing = 0;
 	switch (state_homing) {
 	case 0:
-		if (HAL_GPIO_ReadPin(Photoelectric_sensor_1_GPIO_Port,
-		Photoelectric_sensor_1_Pin) == 0) {
+		if (HAL_GPIO_ReadPin(Photoelectric_sensor_3_GPIO_Port,
+		Photoelectric_sensor_3_Pin) == 0) {
 			__HAL_TIM_SET_COUNTER(&htim2, 0);
 			motor(0, 1);
 			state_homing = 1;
@@ -66,8 +77,11 @@ void Init_Homing() {
 			__HAL_TIM_SET_COUNTER(&htim2, 0);
 			QEIReadRaw = __HAL_TIM_GET_COUNTER(&htim2);
 			PosY = QEIReadRaw * (120.0 / 8192.0);
+
 			pos_i = PosY;
 			pos_f = position_test[position_index];
+
+			y_axis_Moving_Status = 0;
 			State_PID = 2;
 			state_homing = 0;
 			EndEffector_Event(6);

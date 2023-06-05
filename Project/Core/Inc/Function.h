@@ -11,8 +11,10 @@
 #include "math.h"
 #include "arm_math.h"
 
-#define Max_Velocity 1400 // mm/s
+#define Max_Velocity 945 // mm/s
+#define Max_Acceleration 4161
 #define Max_Workspace 700 // mm
+
 
 #define Max_Counter_PWM 65536
 
@@ -44,6 +46,8 @@
 
 #define x_axis_Actual_Position registerFrame[0x44].U16
 #define x_axis_Actual_Speed registerFrame[0x45].U16
+
+
 
 void Init_Homing();
 void Photo_IT();
