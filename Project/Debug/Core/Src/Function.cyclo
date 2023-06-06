@@ -1,4 +1,5 @@
-Function.c:40:6:read_pos	1
-Function.c:45:6:motor	3
-Function.c:58:6:Init_Homing	5
-Function.c:96:6:Test_Range	5
+Function.c:42:6:read_pos	1
+Function.c:47:6:motor	3
+Function.c:59:6:Init_Homing	5
+Function.c:94:6:Joy_Homing	5
+Function.c:126:6:Test_Range	5

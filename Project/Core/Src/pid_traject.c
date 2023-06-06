@@ -84,7 +84,7 @@ extern enum State_Machine {
 	RUNTRAYMODE,
 	RUNPOINTMODE,
 	EMERGENCY_LIMIT,
-	SENSOR_CHECK
+	SENSOR_CHECK,
 } State ;
 
 void PID(float setposition) {

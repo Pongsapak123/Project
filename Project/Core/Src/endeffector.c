@@ -9,7 +9,7 @@
 #include "joystick.h"
 #include "pid_traject.h"
 #include "main.h"
-
+#define timeout 100
 extern I2C_HandleTypeDef hi2c2;
 
 static uint8_t Test_Start_data[2] = { 0x01, 1 };
@@ -45,57 +45,57 @@ void EndEffector_Event(char EndEffector_State) {
 
 		case Test_Start:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Test_Start_data,
-					2, 10000);
+					2, timeout);
 			EndEffector_State = Init;
 			break;
 
 		case Test_Stop:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Test_Stop_data, 2,
-					10000);
+			timeout);
 			EndEffector_State = Init;
 			break;
 
 		case Reset:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Reset_data, 4,
-					10000);
+			timeout);
 			EndEffector_State = Init;
 			break;
 		case In_Emergency:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, In_Emergency_data,
-					1, 10000);
+					1, timeout);
 			EndEffector_State = Init;
 			break;
 		case Out_Emergency:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1,
-					Out_Emergency_data, 4, 10000);
+					Out_Emergency_data, 4, timeout);
 			EndEffector_State = Init;
 			break;
 		case Run_Mode:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Run_Mode_data, 2,
-					10000);
+			timeout);
 			EndEffector_State = Init;
 			break;
 		case Close_Run_Mode:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1,
-					Close_Run_Mode_data, 2, 10000);
+					Close_Run_Mode_data, 2, timeout);
 			EndEffector_State = Init;
 			break;
 
 		case Pick:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Pick_data, 2,
-					10000);
+			timeout);
 			HAL_Delay(2000);
 			EndEffector_State = Init;
 			break;
 		case Place:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Place_data, 2,
-					10000);
+			timeout);
 			HAL_Delay(2000);
 			EndEffector_State = Init;
 			break;
 		case Read:
 			HAL_I2C_Master_Receive(&hi2c2, End_Address << 1, Read_data, 1,
-					10000);
+			timeout);
 			break;
 		}
 

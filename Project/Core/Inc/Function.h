@@ -14,7 +14,7 @@
 #define Max_Velocity 945 // mm/s
 #define Max_Acceleration 4161
 #define Max_Workspace 700 // mm
-
+#define Boundary 0.2
 
 #define Max_Counter_PWM 65536
 
@@ -50,6 +50,7 @@
 
 
 void Init_Homing();
+void Joy_Homing();
 void Photo_IT();
 void motor(uint32_t speed, int DIR);
 void read_pos();

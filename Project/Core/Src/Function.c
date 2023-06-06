@@ -34,8 +34,10 @@ extern enum State_Machine {
 	RUNTRAYMODE,
 	RUNPOINTMODE,
 	EMERGENCY_LIMIT,
-	SENSOR_CHECK
+	SENSOR_CHECK,
 } State ;
+
+extern int homing;
 
 void read_pos() {
 	QEIReadRaw = __HAL_TIM_GET_COUNTER(&htim2);
@@ -51,7 +53,6 @@ void motor(uint32_t speed, int DIR) {
 	} else if (DIR == 1) {
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, RESET); //0
 		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, speed);
-
 	}
 }
 
@@ -78,14 +79,43 @@ void Init_Homing() {
 			QEIReadRaw = __HAL_TIM_GET_COUNTER(&htim2);
 			PosY = QEIReadRaw * (120.0 / 8192.0);
 
-			pos_i = PosY;
-			pos_f = position_test[position_index];
-
 			y_axis_Moving_Status = 0;
-			State_PID = 2;
+
 			state_homing = 0;
 			EndEffector_Event(6);
 			State = IDLE;
+		} else {
+			motor(Max_Counter_PWM * 0.18, 1);
+		}
+		break;
+	}
+}
+
+void Joy_Homing() {
+	static uint16_t state_homing = 0;
+	switch (state_homing) {
+	case 0:
+		if (HAL_GPIO_ReadPin(Photoelectric_sensor_3_GPIO_Port,
+		Photoelectric_sensor_3_Pin) == 0) {
+			motor(0, 1);
+			state_homing = 1;
+		} else {
+			motor(Max_Counter_PWM * 0.25, -1);
+		}
+		break;
+
+	case 1:
+		if (HAL_GPIO_ReadPin(Photoelectric_sensor_2_GPIO_Port,
+		Photoelectric_sensor_2_Pin) == 0) {
+			motor(0, 1);
+			HAL_Delay(400);
+			__HAL_TIM_SET_COUNTER(&htim2, 0);
+			QEIReadRaw = __HAL_TIM_GET_COUNTER(&htim2);
+			PosY = QEIReadRaw * (120.0 / 8192.0);
+
+			homing = 0;
+			state_homing = 0;
+
 		} else {
 			motor(Max_Counter_PWM * 0.18, 1);
 		}

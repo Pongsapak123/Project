@@ -1,2 +1,2 @@
-joystick.c:54:6:JoyStickControl	22
-joystick.c:148:6:Calculate_Position	2
+joystick.c:67:6:JoyStickControl	31
+joystick.c:196:6:Calculate_Position	2

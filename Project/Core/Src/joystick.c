@@ -10,6 +10,7 @@
 #include "pid_traject.h"
 #include "main.h"
 #include "ModBusRTU.h"
+#include "string.h"
 
 extern SPI_HandleTypeDef hspi3;
 
@@ -26,8 +27,9 @@ uint8_t state_motor = 0; //0 is slow and 1 is fast
 uint8_t RX_last = 0x00;
 uint8_t button_last = 0x00;
 
-uint8_t y_count = 0;
+int8_t count = 0;
 float y_c[3];
+float x_c[3];
 
 extern float PosY;
 extern u16u8_t registerFrame[200];
@@ -41,8 +43,12 @@ extern enum State_Machine {
 	RUNTRAYMODE,
 	RUNPOINTMODE,
 	EMERGENCY_LIMIT,
-	SENSOR_CHECK
+	SENSOR_CHECK,
 } State;
+
+extern enum {
+	PICK, PLACE
+} TRAY_STATUS;
 
 int imod3;
 float x_pre_final[9];
@@ -51,13 +57,20 @@ float x_final_joy[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 float y_final_joy[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 float q;
 
+extern float Pick_Point_Y[9];
+extern float Pick_Point_X[9];
+
+extern float Place_Point_Y[9];
+extern float Place_Point_X[9];
+
+int homing = 0;
 void JoyStickControl() {
 
 	read_pos();
 	HAL_GPIO_WritePin(JoyStick_SS_PIN_GPIO_Port, JoyStick_SS_PIN_Pin, 0);
 	HAL_SPI_TransmitReceive(&hspi3, TX, RX, 10, 30);
 	HAL_GPIO_WritePin(JoyStick_SS_PIN_GPIO_Port, JoyStick_SS_PIN_Pin, 1);
-
+	// O 0xdf   0x7f
 	if (RX[4] == 0xfe && RX_last == 0xff) { //Select Speed Button
 		if (state_motor == 1) {
 			state_motor = 0;
@@ -66,30 +79,56 @@ void JoyStickControl() {
 		}
 	} else if (RX[4] == 0xbf && button_last == 0xFF) { //X Button
 
-		if (y_count >= 2) {
+		y_c[count] = PosY;
+		x_c[count] = x_axis_Actual_Position/ 10;
+		count += 1;
+		if (count >= 2) {
+			count = 2;
+		}
+	}
 
-			Pick_Tray_Origin_x= 500;
-			Pick_Tray_Origin_y = 2000;
-			Pick_Tray_Origin_Orientation = 18000;;
+	else if (RX[4] == 0x7f && button_last == 0xFF) { // Delete Button
 
-			Place_Tray_Origin_x = -500;
-			Place_Tray_Origin_y = -2000;
-			Place_Tray_Origin_Orientation = 9000;;
+		y_c[count] = 0;
+		x_c[count] = 0;
+		count -= 1;
+		if (count <= 0) {
+			count = 0;
+		}
+	} else if (RX[4] == 0xdf && button_last == 0xFF) { // Delete Button
+		Calculate_Position(x_c[0], x_c[1], x_c[2], y_c[0], y_c[1], y_c[2]);
 
-			y_axis_Moving_Status= 0;
-			State = IDLE;
-			y_count = 0;
+		if (TRAY_STATUS == PICK) {
 
-			motor(0, 0);
-		} else {
-			y_count += 1;
-			y_c[y_count] = PosY;
+			memcpy(Pick_Point_X, x_final_joy, sizeof(x_final_joy) + 1);
+			memcpy(Pick_Point_Y, y_final_joy, sizeof(y_final_joy) + 1);
+
+			count = 0;
+		} else if (TRAY_STATUS == PLACE) {
+			memcpy(Place_Point_X, x_final_joy, sizeof(x_final_joy) + 1);
+			memcpy(Place_Point_Y, y_final_joy, sizeof(y_final_joy) + 1);
+			count = 0;
 		}
 
+//			Pick_Tray_Origin_x= 500;
+//			Pick_Tray_Origin_y= 2000;
+//			Pick_Tray_Origin_Orientation= 18000;;
+//
+//			Place_Tray_Origin_x= -500;
+//			Place_Tray_Origin_y= -2000;
+//			Place_Tray_Origin_Orientation= 9000;;
+
+		memset(x_c, 0, sizeof(x_c));
+		memset(y_c, 0, sizeof(y_c));
+
+		y_axis_Moving_Status= 0;
+		State = IDLE;
+		count = 0;
+
+		motor(0, 0);
 
 	} else if (RX[4] == 0xEF && button_last == 0xFF) {
-		workState = 1;
-		State = INIT_HOMING;
+		homing = 1;
 	}
 
 //motor speed Select
@@ -101,11 +140,11 @@ void JoyStickControl() {
 		}
 		else if (RX[3] == 0xee) { //UP
 			x_axis_Moving_Status= 0;
-			motor(fast, -1);
+			motor(fast, 1);
 		}
 		else if (RX[3] == 0xbe) { //Down
 			x_axis_Moving_Status= 0;
-			motor(fast, 1);
+			motor(fast, -1);
 		}
 		else if (RX[3] == 0x7e) { //left
 			x_axis_Moving_Status = 8;
@@ -125,11 +164,11 @@ void JoyStickControl() {
 		}
 		else if (RX[3] == 0xee) { //UP
 			x_axis_Moving_Status= 0;
-			motor(slow, -1);
+			motor(slow, 1);
 		}
 		else if (RX[3] == 0xbe) { //Down
 			x_axis_Moving_Status= 0;
-			motor(slow, 1);
+			motor(slow, -1);
 		}
 		else if (RX[3] == 0x7e) { //left
 			x_axis_Moving_Status = 8;
@@ -141,6 +180,15 @@ void JoyStickControl() {
 		}
 
 	}
+
+	switch (homing) {
+	case 0:
+		break;
+	case 1:
+		Joy_Homing();
+		break;
+	}
+
 	RX_last = RX[4];
 	button_last = RX[4];
 }

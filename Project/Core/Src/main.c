@@ -114,6 +114,14 @@ int32_t QEIReadRaw;
 float PosY;
 ////////////read sensor/////////
 
+////////////JoyStick/////////
+
+float Pick_Point_Y[9];
+float Pick_Point_X[9];
+
+float Place_Point_Y[9];
+float Place_Point_X[9];
+
 int position_index = 0;
 float position_test[18] = { 99.34, 544.89, 119.34, 564.89, 139.64, 584.89,
 		99.34, 544.89, 119.34, 564.89, 139.64, 584.89, 99.34, 544.89, 119.34,
@@ -128,7 +136,7 @@ enum State_Machine {
 	RUNTRAYMODE,
 	RUNPOINTMODE,
 	EMERGENCY_LIMIT,
-	SENSOR_CHECK
+	SENSOR_CHECK,
 } State = SENSOR_CHECK;
 
 enum Laser {
@@ -144,6 +152,18 @@ enum Laser {
 	Place,
 	Read,
 } EndEffector_State = Init;
+
+enum State_Machine_RUNTRAYMODE {
+	GOPICK, GOPLACE
+} State_RUNTRAYMODE = GOPICK;
+
+enum State_Machine_Control {
+	TRAJECTGEN, TRAJECTEVA_PID
+} State_Control = TRAJECTGEN;
+
+enum TRAY_STATUS_ENUM {
+	PICK, PLACE
+} TRAY_STATUS;
 
 struct BaseSystemBit {
 	int SetPickTray;
@@ -177,6 +197,7 @@ struct xaxisMovingStatusBit {
 	int JogRight;
 };
 
+int state_laser_test = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -285,6 +306,7 @@ int main(void) {
 
 		static uint64_t timestamp_traject = 0;
 		static uint64_t timestamp_heartbeat = 0;
+		static uint64_t timestamp_Endeffecter = 0;
 		int64_t GetTicku = micros();
 
 		Modbus_Protocal_Worker();
@@ -302,6 +324,36 @@ int main(void) {
 			y_axis_Actual_Speed= 0;
 			y_axis_Actual_Acceleration= 0;
 		}
+//		switch (state_laser_test) {
+//		case 0:
+//			break;
+//		case 1:
+//			EndEffector_Event(Test_Start);
+//			state_laser_test = 0;
+//			break;
+//		case 2:
+//			EndEffector_Event(Run_Mode);
+//			state_laser_test = 0;
+//			break;
+//		case 3:
+//			EndEffector_Event(Pick);
+//			HAL_Delay(2000);
+//			state_laser_test = 0;
+//			break;
+//		case 4:
+//			EndEffector_Event(Place);
+//			HAL_Delay(2000);
+//			state_laser_test = 0;
+//			break;
+//		case 5:
+//			EndEffector_Event(Reset);
+//			state_laser_test = 0;
+//			break;
+//
+//		case 6:
+//			EndEffector_Event(Test_Stop);
+//			state_laser_test = 0;
+//		}
 
 		switch (State) {
 
@@ -313,26 +365,30 @@ int main(void) {
 			y_axis_Moving_Status= yaxisMovingStatusData.Home;
 			x_axis_Moving_Status = xaxisMovingStatusData.Home;
 			Init_Homing();
+
 			break;
 
 			case IDLE: //HOME
 
-			if (End_Effector_Status == EndEffectorStatusData.LaserOn) {
-				EndEffector_Event(Test_Start);
-			} else if(End_Effector_Status == EndEffectorStatusData.LaserOff) {
-				EndEffector_Event(Test_Stop);
-			} else if (End_Effector_Status == EndEffectorStatusData.GripperPower) {
-				EndEffector_Event(Run_Mode);
-			}
+			if (HAL_GetTick() >= timestamp_Endeffecter) {
+				timestamp_Endeffecter = HAL_GetTick() + 200;
+				if (End_Effector_Status == EndEffectorStatusData.LaserOn) {
+					EndEffector_Event(Test_Start);
+				} else if(End_Effector_Status == EndEffectorStatusData.LaserOff) {
+					EndEffector_Event(Test_Stop);
+				} else if (End_Effector_Status == EndEffectorStatusData.GripperPower) {
+					EndEffector_Event(Run_Mode);
+				}
 
-			if (End_Effector_Status == EndEffectorStatusData.GripperPicking) {
-				EndEffector_Event(Run_Mode);
-				EndEffector_Event(Pick);
-				End_Effector_Status = EndEffectorStatusData.GripperPower;
-			} else if (End_Effector_Status == EndEffectorStatusData.GripperPlacing) {
-				EndEffector_Event(Run_Mode);
-				EndEffector_Event(Place);
-				End_Effector_Status = EndEffectorStatusData.GripperPower;
+				if (End_Effector_Status == EndEffectorStatusData.GripperPicking) {
+//					EndEffector_Event(Run_Mode);
+					EndEffector_Event(Pick);
+					End_Effector_Status = EndEffectorStatusData.GripperPower;
+				} else if (End_Effector_Status == EndEffectorStatusData.GripperPlacing) {
+//					EndEffector_Event(Run_Mode);
+					EndEffector_Event(Place);
+					End_Effector_Status = EndEffectorStatusData.GripperPower;
+				}
 			}
 
 			if(Base_System_Status == BaseSystemStatusData.SetPickTray) {
@@ -340,37 +396,40 @@ int main(void) {
 				EndEffector_Event(Test_Start);
 				Base_System_Status = 0;
 				y_axis_Moving_Status = yaxisMovingStatusData.JogPick;
+				TRAY_STATUS = PICK;
 				State = SETPICKTRAY;
 			} else if(Base_System_Status == BaseSystemStatusData.SetPlaceTray) {
 				End_Effector_Status = EndEffectorStatusData.LaserOn;
 				EndEffector_Event(Test_Start);
 				Base_System_Status = 0;
 				y_axis_Moving_Status = yaxisMovingStatusData.JogPlease;
+				TRAY_STATUS = PLACE;
 				State = SETPLACETRAY;
 			}
 
 			if(Base_System_Status == BaseSystemStatusData.RunPointMode) {
 				Base_System_Status = 0;
-
+//				EndEffector_Event(Run_Mode);
 				x_axis_Target_Position = Goal_Point_x;
 				x_axis_Moving_Status = xaxisMovingStatusData.Run;
-
+				HAL_Delay(250);
 				pos_i = PosY;
+
 				if(Goal_Point_y >= 0 && Goal_Point_y <= 3500) {
 					pos_f = (float)Goal_Point_y/10;
 				} else if(Goal_Point_y >= 65535-3500 && Goal_Point_y <= 65535) {
 					pos_f = -(float)(65536%Goal_Point_y)/10;
 				}
+
 				Trajectory_Gen(pos_i, pos_f, Max_Velocity, Max_Acceleration);
 				y_axis_Moving_Status = yaxisMovingStatusData.Gopoint;
-
 				State = RUNPOINTMODE;
 
 			} else if(Base_System_Status == BaseSystemStatusData.RunTrayMode) {
-
 				Base_System_Status = 0;
-
+				position_index = 0;
 				State = RUNTRAYMODE;
+				State_RUNTRAYMODE = GOPICK;
 			}
 
 			if(Base_System_Status == BaseSystemStatusData.Home) {
@@ -381,6 +440,7 @@ int main(void) {
 
 			case SETPICKTRAY:
 			JoyStickControl();
+
 			break;
 
 			case SETPLACETRAY:
@@ -393,7 +453,7 @@ int main(void) {
 				Trajectory_Eva();
 				read_pos();
 				PID(x);
-			} else if (pos_f - PosY <= 0.2 && pos_f - PosY >= -0.2 ) {
+			} else if (pos_f - PosY <= Boundary && pos_f - PosY >= -Boundary ) {
 				__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
 				Intregral = 0;
 				Dutyfeedback = 0;
@@ -402,11 +462,98 @@ int main(void) {
 
 				pos_i = PosY;
 				y_axis_Moving_Status = 0;
+
 				State = IDLE;
 			}
 			break;
 
 			case RUNTRAYMODE:
+			switch (State_RUNTRAYMODE) {
+
+				case GOPICK:
+				y_axis_Moving_Status = yaxisMovingStatusData.GoPick;
+				switch (State_Control) {
+					case TRAJECTGEN:
+					pos_i = PosY;
+					pos_f = Pick_Point_Y[position_index];
+
+					x_axis_Target_Position = Pick_Point_X[position_index];
+
+					Trajectory_Gen(pos_i, pos_f, Max_Velocity, Max_Acceleration);
+
+					x_axis_Moving_Status = xaxisMovingStatusData.Run;
+					State_Control = TRAJECTEVA_PID;
+					break;
+					case TRAJECTEVA_PID:
+					if (GetTicku >= timestamp_traject) {
+						timestamp_traject = GetTicku + traject_us;
+						Trajectory_Eva();
+						read_pos();
+						PID(x);
+					} else if (pos_f - PosY <= 0.2 && pos_f - PosY >= -0.2 ) {
+						__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+						Intregral = 0;
+						Dutyfeedback = 0;
+						v = 0;
+						a = 0;
+
+						EndEffector_Event(Pick);
+						pos_i = PosY;
+						pos_i = PosY;
+						pos_f = Place_Point_Y[position_index];
+						State_Control = TRAJECTGEN;
+						State_RUNTRAYMODE = GOPLACE;
+					}
+					break;
+				}
+				break;
+
+				case GOPLACE:
+				y_axis_Moving_Status = yaxisMovingStatusData.GoPlace;
+				switch (State_Control) {
+					case TRAJECTGEN:
+
+					x_axis_Target_Position= Place_Point_X[position_index];
+
+					Trajectory_Gen(pos_i, pos_f, Max_Velocity, Max_Acceleration);
+
+					x_axis_Moving_Status = xaxisMovingStatusData.Run;
+					State_Control = TRAJECTEVA_PID;
+
+					break;
+
+					case TRAJECTEVA_PID:
+					if (GetTicku >= timestamp_traject) {
+						timestamp_traject = GetTicku + traject_us;
+						Trajectory_Eva();
+						read_pos();
+						PID(x);
+					} else if (pos_f - PosY <= 0.2 && pos_f - PosY >= -0.2 ) {
+						__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+						Intregral = 0;
+						Dutyfeedback = 0;
+						v = 0;
+						a = 0;
+
+						EndEffector_Event(Place);
+						pos_i = PosY;
+
+						if(position_index < 8) {
+
+							position_index++;
+							State_Control = TRAJECTGEN;
+							State_RUNTRAYMODE = GOPICK;
+
+						} else {
+							y_axis_Moving_Status = 0;
+							State = IDLE;
+						}
+					}
+					break;
+				}
+				break;
+			}
+
 			break;
 
 			case EMERGENCY_LIMIT:
@@ -449,6 +596,10 @@ int main(void) {
 				HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
 						RESET);
 			}
+			if(go_next == 1 ) {
+				State = INIT;
+			}
+
 			break;
 		}
 
@@ -914,8 +1065,8 @@ static void MX_GPIO_Init(void) {
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOA,
-	Switch_Relay_3_Pin | Switch_Relay_1_Pin | Switch_Relay_2_Pin | DIR_Pin,
-			GPIO_PIN_RESET);
+			Switch_Relay_3_Pin | Switch_Relay_1_Pin | Switch_Relay_2_Pin
+					| DIR_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(JoyStick_SS_PIN_GPIO_Port, JoyStick_SS_PIN_Pin,

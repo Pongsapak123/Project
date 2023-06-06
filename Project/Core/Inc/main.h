@@ -89,8 +89,6 @@ void Error_Handler(void);
 #define TCK_GPIO_Port GPIOA
 #define JoyStick_SS_PIN_Pin GPIO_PIN_2
 #define JoyStick_SS_PIN_GPIO_Port GPIOD
-#define SWO_Pin GPIO_PIN_3
-#define SWO_GPIO_Port GPIOB
 #define Photoelectric_sensor_3_Pin GPIO_PIN_8
 #define Photoelectric_sensor_3_GPIO_Port GPIOB
 #define Photoelectric_sensor_3_EXTI_IRQn EXTI9_5_IRQn
