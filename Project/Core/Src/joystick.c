@@ -11,6 +11,7 @@
 #include "main.h"
 #include "ModBusRTU.h"
 #include "string.h"
+#include "math.h"
 
 extern SPI_HandleTypeDef hspi3;
 
@@ -33,6 +34,13 @@ float x_c[3];
 
 extern float PosY;
 extern u16u8_t registerFrame[200];
+
+extern float a1;
+extern float b;
+extern float c;
+//float cos_zeta1= a1/ c;
+extern float cos_zeta;
+extern float sin_zeta;
 
 extern enum State_Machine {
 	INIT,
@@ -64,6 +72,9 @@ extern float Place_Point_Y[9];
 extern float Place_Point_X[9];
 
 int homing = 0;
+
+uint32_t time_joy_offset = 0;
+
 void JoyStickControl() {
 
 	read_pos();
@@ -71,40 +82,55 @@ void JoyStickControl() {
 	HAL_SPI_TransmitReceive(&hspi3, TX, RX, 10, 30);
 	HAL_GPIO_WritePin(JoyStick_SS_PIN_GPIO_Port, JoyStick_SS_PIN_Pin, 1);
 	// O 0xdf   0x7f
+
+//	static uint32_t timestamp_joy = 0;
+
 	if (RX[4] == 0xfe && RX_last == 0xff) { //Select Speed Button
 		if (state_motor == 1) {
 			state_motor = 0;
 		} else if (state_motor == 0) {
 			state_motor = 1;
 		}
-	} else if (RX[4] == 0xbf && button_last == 0xFF) { //X Button
-
+	} else if (RX[4] == 0xbf && button_last == 0xFF
+			&& HAL_GetTick() - time_joy_offset >= 1000) { //X Button
+		time_joy_offset = HAL_GetTick();
 		y_c[count] = PosY;
-		x_c[count] = x_axis_Actual_Position/ 10;
+
+		if (x_axis_Actual_Position>= 0 && x_axis_Actual_Position <= 3500) {
+			x_c[count] = (float)x_axis_Actual_Position/10.0;
+		} else if(x_axis_Actual_Position >= 65535-3500 && x_axis_Actual_Position <= 65535) {
+			x_c[count] = -((float)(65536%x_axis_Actual_Position))/10.0;
+		}
+
 		count += 1;
 		if (count >= 2) {
 			count = 2;
 		}
 	}
 
-	else if (RX[4] == 0x7f && button_last == 0xFF) { // Delete Button
-
-		y_c[count] = 0;
-		x_c[count] = 0;
-		count -= 1;
-		if (count <= 0) {
-			count = 0;
-		}
-	} else if (RX[4] == 0xdf && button_last == 0xFF) { // Delete Button
+//	else if (RX[4] == 0x7f && button_last == 0xFF
+//			&& HAL_GetTick() - time_joy_offset >= 1000) { // Delete Button
+//		time_joy_offset = HAL_GetTick();
+//
+//		y_c[count] = 0;
+//		x_c[count] = 0;
+//		count -= 1;
+//		if (count <= 0) {
+//			count = 0;
+//		}
+//	}
+	else if (RX[4] == 0xdf && button_last == 0xFF
+			&& HAL_GetTick() - time_joy_offset >= 1000 && count >= 2) { // Delete Button
 		Calculate_Position(x_c[0], x_c[1], x_c[2], y_c[0], y_c[1], y_c[2]);
 
 		if (TRAY_STATUS == PICK) {
-
+//			Calculate_Position(104, 114.5, 63.7, 221.5, 281.9, 281.7);
 			memcpy(Pick_Point_X, x_final_joy, sizeof(x_final_joy) + 1);
 			memcpy(Pick_Point_Y, y_final_joy, sizeof(y_final_joy) + 1);
 
 			count = 0;
 		} else if (TRAY_STATUS == PLACE) {
+//			Calculate_Position(70.4, 128.2, 130.3, -267.1, -269.1, -218.4);
 			memcpy(Place_Point_X, x_final_joy, sizeof(x_final_joy) + 1);
 			memcpy(Place_Point_Y, y_final_joy, sizeof(y_final_joy) + 1);
 			count = 0;
@@ -127,9 +153,10 @@ void JoyStickControl() {
 
 		motor(0, 0);
 
-	} else if (RX[4] == 0xEF && button_last == 0xFF) {
-		homing = 1;
 	}
+//	else if (RX[4] == 0xEF && button_last == 0xFF) {
+//		homing = 1;
+//	}
 
 //motor speed Select
 	switch (state_motor) {
@@ -195,42 +222,37 @@ void JoyStickControl() {
 
 void Calculate_Position(float x_c1, float x_c2, float x_c3, float y_c1,
 		float y_c2, float y_c3) {
-	int i = 0;
+
 //Parameter use in Equation
 //Trigonometry
-	float a = x_c2 - x_c1;
-	float b = y_c2 - y_c1;
-	float c = sqrt((a * a) + (b * b));
-//float cos_zeta = a / c;
-	float sin_zeta = b / c;
-//Calculate
-	for (i = 0; i < 3; i++) {
-		q = floor((i + 1) / 3);
-		imod3 = (i + 1) % 3;
-		//Position of hole then not rotation
-		x_pre_final[i] = x_c1 + (50 - (20 * ((2 - (2 * q)) / (imod3 + q))));
-		y_pre_final[i] = y_c[0] - (40 - (15 * ((2 - (2 * q)) / (imod3 + q))));
-		//Position when rotation 25
-		x_final_joy[i] = x_pre_final[i] + (15 * sin_zeta);
-		y_final_joy[i] = y_pre_final[i] + (20 * sin_zeta);
-	}
-//Second Row
-	x_final_joy[3] = x_pre_final[0] + (15 * 2 * sin_zeta);
-	y_final_joy[3] = y_pre_final[0] + (20 * 2 * sin_zeta);
+	a1 = x_c2 - x_c1;
+	b = y_c2 - y_c1;
+	c = sqrt((a1 * a1) + (b * b));
 
-	x_final_joy[4] = x_pre_final[1] + (15 * 2 * sin_zeta);
-	y_final_joy[4] = y_pre_final[1] + (20 * 2 * sin_zeta);
+//float cos_zeta1= a1/ c;
+	cos_zeta = a1 / c;
+	sin_zeta = b / c;
+//	float tan_zeta1= b / a;
 
-	x_final_joy[5] = x_pre_final[2] + (15 * 2 * sin_zeta);
-	y_final_joy[5] = y_pre_final[2] + (20 * 2 * sin_zeta);
-//Third Row
-	x_final_joy[6] = x_pre_final[0] + (15 * 3 * sin_zeta);
-	y_final_joy[6] = y_pre_final[0] + (20 * 3 * sin_zeta);
+	x_final_joy[0] = (((10 * cos_zeta) - (40 * sin_zeta)) + x_c1) * 10;
+	x_final_joy[1] = (((30 * cos_zeta) - (40 * sin_zeta)) + x_c1) * 10;
+	x_final_joy[2] = (((50 * cos_zeta) - (40 * sin_zeta)) + x_c1) * 10;
+	x_final_joy[3] = (((10 * cos_zeta) - (25 * sin_zeta)) + x_c1) * 10;
+	x_final_joy[4] = (((30 * cos_zeta) - (25 * sin_zeta)) + x_c1) * 10;
+	x_final_joy[5] = (((50 * cos_zeta) - (25 * sin_zeta)) + x_c1) * 10;
+	x_final_joy[6] = (((10 * cos_zeta) - (10 * sin_zeta)) + x_c1) * 10;
+	x_final_joy[7] = (((30 * cos_zeta) - (10 * sin_zeta)) + x_c1) * 10;
+	x_final_joy[8] = (((50 * cos_zeta) - (10 * sin_zeta)) + x_c1) * 10;
 
-	x_final_joy[7] = x_pre_final[1] + (15 * 3 * sin_zeta);
-	y_final_joy[7] = y_pre_final[1] + (20 * 3 * sin_zeta);
+	y_final_joy[0] = ((40 * cos_zeta) + (10 * sin_zeta)) + y_c1;
+	y_final_joy[1] = ((40 * cos_zeta) + (30 * sin_zeta)) + y_c1;
+	y_final_joy[2] = ((40 * cos_zeta) + (50 * sin_zeta)) + y_c1;
+	y_final_joy[3] = ((25 * cos_zeta) + (10 * sin_zeta)) + y_c1;
+	y_final_joy[4] = ((25 * cos_zeta) + (30 * sin_zeta)) + y_c1;
+	y_final_joy[5] = ((25 * cos_zeta) + (50 * sin_zeta)) + y_c1;
+	y_final_joy[6] = ((10 * cos_zeta) + (10 * sin_zeta)) + y_c1;
+	y_final_joy[7] = ((10 * cos_zeta) + (30 * sin_zeta)) + y_c1;
+	y_final_joy[8] = ((10 * cos_zeta) + (50 * sin_zeta)) + y_c1;
 
-	x_final_joy[8] = x_pre_final[2] + (15 * 3 * sin_zeta);
-	y_final_joy[8] = y_pre_final[2] + (20 * 3 * sin_zeta);
 }
 

@@ -47,8 +47,6 @@
 #define x_axis_Actual_Position registerFrame[0x44].U16
 #define x_axis_Actual_Speed registerFrame[0x45].U16
 
-
-
 void Init_Homing();
 void Joy_Homing();
 void Photo_IT();

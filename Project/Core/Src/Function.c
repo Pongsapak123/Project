@@ -71,8 +71,8 @@ void Init_Homing() {
 		break;
 
 	case 1:
-		if (HAL_GPIO_ReadPin(Photoelectric_sensor_2_GPIO_Port,
-		Photoelectric_sensor_2_Pin) == 0) {
+		if (HAL_GPIO_ReadPin(Photoelectric_sensor_1_GPIO_Port,
+		Photoelectric_sensor_1_Pin) == 0) {
 			motor(0, 1);
 			HAL_Delay(400);
 			__HAL_TIM_SET_COUNTER(&htim2, 0);
@@ -105,8 +105,8 @@ void Joy_Homing() {
 		break;
 
 	case 1:
-		if (HAL_GPIO_ReadPin(Photoelectric_sensor_2_GPIO_Port,
-		Photoelectric_sensor_2_Pin) == 0) {
+		if (HAL_GPIO_ReadPin(Photoelectric_sensor_1_GPIO_Port,
+		Photoelectric_sensor_1_Pin) == 0) {
 			motor(0, 1);
 			HAL_Delay(400);
 			__HAL_TIM_SET_COUNTER(&htim2, 0);
