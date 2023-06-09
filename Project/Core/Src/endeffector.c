@@ -101,6 +101,7 @@ void EndEffector_Event(char EndEffector_State) {
 			}
 			if (Count_Time == 1) {
 				if (Read_data[0] == 0b0111) {
+//					Read_data[0] = 0;
 					EndEffector_State = Init;
 					Count_Time = 0;
 
@@ -126,6 +127,7 @@ void EndEffector_Event(char EndEffector_State) {
 			}
 			if (Count_Time == 1) {
 				if (Read_data[0] == 0b0100) {
+//					Read_data[0] = 0;
 					EndEffector_State = Init;
 					Count_Time = 0;
 

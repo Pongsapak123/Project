@@ -4,8 +4,8 @@ ModBusRTU.c:33:6:modbus_UART_Recived	2
 ModBusRTU.c:49:6:Modbus_init	2
 ModBusRTU.c:116:16:CRC16	2
 ModBusRTU.c:134:6:Modbus_Protocal_Worker	17
-ModBusRTU.c:245:6:modbusWrite1Register	2
-ModBusRTU.c:274:6:modbusRead1Register	6
-ModBusRTU.c:310:6:ModbusErrorReply	1
-ModBusRTU.c:317:6:Modbus_frame_response	3
-ModBusRTU.c:334:6:Modbus_Emission	3
+ModBusRTU.c:247:6:modbusWrite1Register	2
+ModBusRTU.c:276:6:modbusRead1Register	6
+ModBusRTU.c:312:6:ModbusErrorReply	1
+ModBusRTU.c:319:6:Modbus_frame_response	3
+ModBusRTU.c:336:6:Modbus_Emission	3

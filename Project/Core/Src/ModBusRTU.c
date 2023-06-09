@@ -133,6 +133,7 @@ unsigned short usDataLen ; /* quantity of bytes in message */
 
 void Modbus_Protocal_Worker()
 {
+
 	switch(hModbus->Mstatus)
 	{
 	default:
@@ -166,6 +167,7 @@ void Modbus_Protocal_Worker()
 		{
 			hModbus->modbusUartStructure.RxTail =0;
 			HAL_UART_Receive_IT(hModbus->huart, &(hModbus->modbusUartStructure.MessageBufferRx[hModbus->modbusUartStructure.RxTail]), 1);
+
 		}
 		break;
 	case Modbus_state_Reception:

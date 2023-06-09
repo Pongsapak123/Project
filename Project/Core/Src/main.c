@@ -149,9 +149,11 @@ enum Laser {
 	Run_Mode,
 	Close_Run_Mode,
 	Pick,
+	Pick_Check,
 	Place,
+	Place_Check,
 	Read,
-} EndEffector_State = Init;
+} EndEffector_State =Init;
 
 enum State_Machine_RUNTRAYMODE {
 	GOPICK, GOPLACE
@@ -315,7 +317,7 @@ int main(void) {
 		static uint64_t timestamp_traject = 0;
 		static uint64_t timestamp_heartbeat = 0;
 		static uint64_t timestamp_Endeffecter = 0;
-		static uint64_t timestamp_wait = 0;
+//		static uint64_t timestamp_wait = 0;
 		int64_t GetTicku = micros();
 
 		Modbus_Protocal_Worker();
@@ -381,7 +383,7 @@ int main(void) {
 			case IDLE: //HOME
 
 			if (HAL_GetTick() >= timestamp_Endeffecter) {
-				timestamp_Endeffecter = HAL_GetTick() + 200;
+				timestamp_Endeffecter = HAL_GetTick() + 1000;
 				if (End_Effector_Status == EndEffectorStatusData.LaserOn) {
 					EndEffector_Event(Test_Start);
 				} else if(End_Effector_Status == EndEffectorStatusData.LaserOff) {
@@ -389,16 +391,18 @@ int main(void) {
 				} else if (End_Effector_Status == EndEffectorStatusData.GripperPower) {
 					EndEffector_Event(Run_Mode);
 				}
+			}
 
-				if (End_Effector_Status == EndEffectorStatusData.GripperPicking) {
-//					EndEffector_Event(Run_Mode);
-					EndEffector_Event(Pick);
-					End_Effector_Status = EndEffectorStatusData.GripperPower;
-				} else if (End_Effector_Status == EndEffectorStatusData.GripperPlacing) {
-//					EndEffector_Event(Run_Mode);
-					EndEffector_Event(Place);
-					End_Effector_Status = EndEffectorStatusData.GripperPower;
-				}
+			if (End_Effector_Status == EndEffectorStatusData.GripperPicking) {
+//				EndEffector_Event(Run_Mode);
+//				HAL_Delay(300);
+				EndEffector_Event(Pick);
+				End_Effector_Status = EndEffectorStatusData.GripperPower;
+			} else if (End_Effector_Status == EndEffectorStatusData.GripperPlacing) {
+//				EndEffector_Event(Run_Mode);
+//				HAL_Delay(300);
+				EndEffector_Event(Place);
+				End_Effector_Status = EndEffectorStatusData.GripperPower;
 			}
 
 			if(Base_System_Status == BaseSystemStatusData.SetPickTray) {
@@ -419,7 +423,7 @@ int main(void) {
 
 			if(Base_System_Status == BaseSystemStatusData.RunPointMode) {
 				Base_System_Status = 0;
-//				EndEffector_Event(Run_Mode);
+				EndEffector_Event(Run_Mode);
 				x_axis_Target_Position = Goal_Point_x;
 				x_axis_Moving_Status = xaxisMovingStatusData.Run;
 
@@ -439,9 +443,6 @@ int main(void) {
 			} else if(Base_System_Status == BaseSystemStatusData.RunTrayMode) {
 				Base_System_Status = 0;
 				position_index = 0;
-
-				x_axis_Target_Position= (int16_t)Pick_Point_X[position_index];
-				x_axis_Moving_Status = xaxisMovingStatusData.Run;
 
 				State = RUNTRAYMODE;
 				State_Control = TRAJECTGEN;
@@ -492,24 +493,13 @@ int main(void) {
 					pos_i = PosY;
 					pos_f = Pick_Point_Y[position_index];
 
-//					x_axis_Target_Position = (int16_t)Pick_Point_X[position_index];
-//					if((uint16_t)Pick_Point_X[position_index] >= 0 && (uint16_t)Pick_Point_X[position_index] <= 1400) {
-//						x_axis_Target_Position = (uint16_t)Pick_Point_X[position_index];
-//					} else if((uint16_t)Pick_Point_X[position_index] <= 65535 && (uint16_t)Pick_Point_X[position_index] >= 65535-1400) {
-//						x_axis_Target_Position = (uint16_t)Pick_Point_X[position_index]+65536;
-//					}
-
 					Trajectory_Gen(pos_i, pos_f, Max_Velocity, Max_Acceleration);
-//					x_axis_Moving_Status = xaxisMovingStatusData.Run;
 
-//					if(HAL_GetTick() >= timestamp_wait) {
-//						timestamp_wait = HAL_GetTick() + 300;
-//						State_Control = TRAJECTEVA_PID;
-//					}
-
-//					if(x_axis_Actual_Position == (uint16_t)Pick_Point_X[position_index]) {
-					State_Control = TRAJECTEVA_PID;
-//					}
+					if(x_axis_Moving_Status == 0) {
+						x_axis_Target_Position= (int16_t)Pick_Point_X[position_index];
+						x_axis_Moving_Status = xaxisMovingStatusData.Run;
+						State_Control = TRAJECTEVA_PID;
+					}
 
 					break;
 					case TRAJECTEVA_PID:
@@ -518,7 +508,7 @@ int main(void) {
 						Trajectory_Eva();
 						read_pos();
 						PID(x);
-					} else if (pos_f - PosY <= Boundary && pos_f - PosY >= -Boundary && x_axis_Moving_Status == 0) {
+					} else if (pos_f - PosY <= Boundary && pos_f - PosY >= -Boundary) {
 						__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
 						Intregral = 0;
 						Dutyfeedback = 0;
@@ -529,10 +519,6 @@ int main(void) {
 						HAL_Delay(2200);
 						pos_i = PosY;
 						pos_f = Place_Point_Y[position_index];
-
-						x_axis_Target_Position= (int16_t)Place_Point_X[position_index];
-
-						x_axis_Moving_Status = xaxisMovingStatusData.Run;
 
 						State_Control = TRAJECTGEN;
 						State_RUNTRAYMODE = GOPLACE;
@@ -549,7 +535,12 @@ int main(void) {
 					Trajectory_Gen(pos_i, pos_f, Max_Velocity, Max_Acceleration);
 
 //					if(x_axis_Actual_Position == (uint16_t)Place_Point_X[position_index]) {
-					State_Control = TRAJECTEVA_PID;
+					if(x_axis_Moving_Status == 0) {
+						x_axis_Target_Position= (int16_t)Place_Point_X[position_index];
+						x_axis_Moving_Status = xaxisMovingStatusData.Run;
+						State_Control = TRAJECTEVA_PID;
+					}
+
 //					}
 //					if(HAL_GetTick() >= timestamp_wait) {
 //						timestamp_wait = HAL_GetTick() + 300;
@@ -563,7 +554,7 @@ int main(void) {
 						Trajectory_Eva();
 						read_pos();
 						PID(x);
-					} else if (pos_f - PosY <= Boundary && pos_f - PosY >= -Boundary && x_axis_Moving_Status == 0) {
+					} else if (pos_f - PosY <= Boundary && pos_f - PosY >= -Boundary) {
 						__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
 						Intregral = 0;
 						Dutyfeedback = 0;
@@ -577,8 +568,6 @@ int main(void) {
 						if(position_index < 8) {
 
 							position_index++;
-							x_axis_Target_Position = (int16_t)Pick_Point_X[position_index];
-							x_axis_Moving_Status = xaxisMovingStatusData.Run;
 							State_Control = TRAJECTGEN;
 							State_RUNTRAYMODE = GOPICK;
 
@@ -1103,8 +1092,8 @@ static void MX_GPIO_Init(void) {
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOA,
-	Switch_Relay_3_Pin | Switch_Relay_1_Pin | Switch_Relay_2_Pin | DIR_Pin,
-			GPIO_PIN_RESET);
+			Switch_Relay_3_Pin | Switch_Relay_1_Pin | Switch_Relay_2_Pin
+					| DIR_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(JoyStick_SS_PIN_GPIO_Port, JoyStick_SS_PIN_Pin,
