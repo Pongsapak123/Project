@@ -89,6 +89,9 @@ float Dutyfeedback;
 uint8_t State_PID = 2;
 float Intregral = 0;
 
+float current_pos = 0.0;
+float current_velocity = 0.0;
+float acc = 0.0;
 ////////////////////////////////
 
 int state_laser = 0;
@@ -139,6 +142,8 @@ enum State_Machine {
 	SENSOR_CHECK,
 } State = SENSOR_CHECK;
 
+int LAST_STATE;
+
 enum Laser {
 	Init,
 	Test_Start,
@@ -153,14 +158,14 @@ enum Laser {
 	Place,
 	Place_Check,
 	Read,
-} EndEffector_State =Init;
+} EndEffector_State = Init;
 
 enum State_Machine_RUNTRAYMODE {
 	GOPICK, GOPLACE
 } State_RUNTRAYMODE = GOPICK;
 
 enum State_Machine_Control {
-	TRAJECTGEN, TRAJECTEVA_PID
+	TRAJECTGEN, TRAJECTEVA_PID, TRAJECTGENNEXT
 } State_Control = TRAJECTGEN;
 
 enum TRAY_STATUS_ENUM {
@@ -208,6 +213,11 @@ float c = 0;
 float cos_zeta;
 float sin_zeta;
 //	float tan_zeta = b / a;
+
+int last_endeffecter_status = 0;
+
+int flag = 0;
+uint64_t timestamp_wait = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -225,7 +235,7 @@ static void MX_TIM11_Init(void);
 static void MX_I2C2_Init(void);
 /* USER CODE BEGIN PFP */
 inline uint64_t micros();
-
+void ramp_set(int number);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -271,7 +281,7 @@ int main(void) {
 	MX_TIM11_Init();
 	MX_I2C2_Init();
 	/* USER CODE BEGIN 2 */
-//	EndEffector_Event(Reset);
+	EndEffector_Event(Reset);
 	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_1 | TIM_CHANNEL_2);
 	HAL_TIM_Base_Start_IT(&htim3);
 	HAL_TIM_Base_Start(&htim1);
@@ -306,8 +316,8 @@ int main(void) {
 			.JogLeft = 4, .JogRight = 8 };
 
 	x_axis_Actual_Position= 0;
-	x_axis_Target_Speed= 2500;
-	x_axis_Target_Acceleration_Time= 2;
+	x_axis_Target_Speed= 3000;
+	x_axis_Target_Acceleration_Time= 1;
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -316,8 +326,8 @@ int main(void) {
 
 		static uint64_t timestamp_traject = 0;
 		static uint64_t timestamp_heartbeat = 0;
-		static uint64_t timestamp_Endeffecter = 0;
-//		static uint64_t timestamp_wait = 0;
+//		static uint64_t timestamp_Endeffecter = 0;
+
 		int64_t GetTicku = micros();
 
 		Modbus_Protocal_Worker();
@@ -331,41 +341,11 @@ int main(void) {
 
 			Heartbeat_Protocol= 22881;
 
-			y_axis_Actual_Position= (int32_t)(PosY* 10);
-			y_axis_Actual_Speed= 0;
-			y_axis_Actual_Acceleration= 0;
-		}
+			y_axis_Actual_Position= (int32_t)(PosY*10);
+			y_axis_Actual_Speed= fabs(current_velocity)*10;
+			y_axis_Actual_Acceleration= fabs(acc)*10;
 
-//		switch (state_laser_test) {
-//		case 0:
-//			break;
-//		case 1:
-//			EndEffector_Event(Test_Start);
-//			state_laser_test = 0;
-//			break;
-//		case 2:
-//			EndEffector_Event(Run_Mode);
-//			state_laser_test = 0;
-//			break;
-//		case 3:
-//			EndEffector_Event(Pick);
-//			HAL_Delay(2000);
-//			state_laser_test = 0;
-//			break;
-//		case 4:
-//			EndEffector_Event(Place);
-//			HAL_Delay(2000);
-//			state_laser_test = 0;
-//			break;
-//		case 5:
-//			EndEffector_Event(Reset);
-//			state_laser_test = 0;
-//			break;
-//
-//		case 6:
-//			EndEffector_Event(Test_Stop);
-//			state_laser_test = 0;
-//		}
+		}
 
 		switch (State) {
 
@@ -382,8 +362,7 @@ int main(void) {
 
 			case IDLE: //HOME
 
-			if (HAL_GetTick() >= timestamp_Endeffecter) {
-				timestamp_Endeffecter = HAL_GetTick() + 1000;
+			if(End_Effector_Status != last_endeffecter_status) {
 				if (End_Effector_Status == EndEffectorStatusData.LaserOn) {
 					EndEffector_Event(Test_Start);
 				} else if(End_Effector_Status == EndEffectorStatusData.LaserOff) {
@@ -391,23 +370,31 @@ int main(void) {
 				} else if (End_Effector_Status == EndEffectorStatusData.GripperPower) {
 					EndEffector_Event(Run_Mode);
 				}
+
+				if (End_Effector_Status == EndEffectorStatusData.GripperPicking) {
+					//				EndEffector_Event(Run_Mode);
+					//				HAL_Delay(300);
+					EndEffector_Event(Pick);
+					End_Effector_Status = EndEffectorStatusData.GripperPower;
+				} else if (End_Effector_Status == EndEffectorStatusData.GripperPlacing) {
+					//				EndEffector_Event(Run_Mode);
+					//				HAL_Delay(300);
+					EndEffector_Event(Place);
+					End_Effector_Status = EndEffectorStatusData.GripperPower;
+				}
 			}
 
-			if (End_Effector_Status == EndEffectorStatusData.GripperPicking) {
-//				EndEffector_Event(Run_Mode);
-//				HAL_Delay(300);
-				EndEffector_Event(Pick);
-				End_Effector_Status = EndEffectorStatusData.GripperPower;
-			} else if (End_Effector_Status == EndEffectorStatusData.GripperPlacing) {
-//				EndEffector_Event(Run_Mode);
-//				HAL_Delay(300);
-				EndEffector_Event(Place);
-				End_Effector_Status = EndEffectorStatusData.GripperPower;
-			}
+			last_endeffecter_status = End_Effector_Status;
 
 			if(Base_System_Status == BaseSystemStatusData.SetPickTray) {
 				End_Effector_Status = EndEffectorStatusData.LaserOn;
 				EndEffector_Event(Test_Start);
+				HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin,
+						RESET);
+				HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin,
+						SET);
+				HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
+						RESET);
 				Base_System_Status = 0;
 				y_axis_Moving_Status = yaxisMovingStatusData.JogPick;
 				TRAY_STATUS = PICK;
@@ -415,6 +402,12 @@ int main(void) {
 			} else if(Base_System_Status == BaseSystemStatusData.SetPlaceTray) {
 				End_Effector_Status = EndEffectorStatusData.LaserOn;
 				EndEffector_Event(Test_Start);
+				HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin,
+						RESET);
+				HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin,
+						SET);
+				HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
+						RESET);
 				Base_System_Status = 0;
 				y_axis_Moving_Status = yaxisMovingStatusData.JogPlease;
 				TRAY_STATUS = PLACE;
@@ -423,7 +416,7 @@ int main(void) {
 
 			if(Base_System_Status == BaseSystemStatusData.RunPointMode) {
 				Base_System_Status = 0;
-				EndEffector_Event(Run_Mode);
+//				EndEffector_Event(Run_Mode);
 				x_axis_Target_Position = Goal_Point_x;
 				x_axis_Moving_Status = xaxisMovingStatusData.Run;
 
@@ -441,9 +434,15 @@ int main(void) {
 				State = RUNPOINTMODE;
 
 			} else if(Base_System_Status == BaseSystemStatusData.RunTrayMode) {
+
+				HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin, RESET);
+				HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin, RESET);
+				HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin, SET);
+
 				Base_System_Status = 0;
 				position_index = 0;
-
+				End_Effector_Status = EndEffectorStatusData.GripperPower;
+				EndEffector_Event(Run_Mode);
 				State = RUNTRAYMODE;
 				State_Control = TRAJECTGEN;
 				State_RUNTRAYMODE = GOPICK;
@@ -508,22 +507,39 @@ int main(void) {
 						Trajectory_Eva();
 						read_pos();
 						PID(x);
-					} else if (pos_f - PosY <= Boundary && pos_f - PosY >= -Boundary) {
+					} else if (pos_f - PosY <= Boundary && pos_f - PosY >= -Boundary ) {
 						__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
 						Intregral = 0;
 						Dutyfeedback = 0;
 						v = 0;
 						a = 0;
 
-//						EndEffector_Event(Pick);
-						HAL_Delay(2200);
-						pos_i = PosY;
-						pos_f = Place_Point_Y[position_index];
+//						HAL_Delay(2000);
+//						State_Control = TRAJECTGENNEXT;
 
-						State_Control = TRAJECTGEN;
-						State_RUNTRAYMODE = GOPLACE;
+						State_Control = TRAJECTGENNEXT;
+
 					}
 					break;
+
+					case TRAJECTGENNEXT:
+					if(flag == 0 && x_axis_Moving_Status == 0) {
+						EndEffector_Event(Pick);
+						timestamp_wait = HAL_GetTick()+2200;
+						flag = 1;
+					} else if(flag == 1) {
+						if(HAL_GetTick() >= timestamp_wait) {
+							flag = 0;
+							pos_i = PosY;
+							pos_f = Place_Point_Y[position_index];
+
+							State_Control = TRAJECTGEN;
+							State_RUNTRAYMODE = GOPLACE;
+						}
+					}
+
+					break;
+
 				}
 				break;
 
@@ -534,18 +550,12 @@ int main(void) {
 
 					Trajectory_Gen(pos_i, pos_f, Max_Velocity, Max_Acceleration);
 
-//					if(x_axis_Actual_Position == (uint16_t)Place_Point_X[position_index]) {
 					if(x_axis_Moving_Status == 0) {
 						x_axis_Target_Position= (int16_t)Place_Point_X[position_index];
 						x_axis_Moving_Status = xaxisMovingStatusData.Run;
 						State_Control = TRAJECTEVA_PID;
 					}
 
-//					}
-//					if(HAL_GetTick() >= timestamp_wait) {
-//						timestamp_wait = HAL_GetTick() + 300;
-//						State_Control = TRAJECTEVA_PID;
-//					}
 					break;
 
 					case TRAJECTEVA_PID:
@@ -561,21 +571,36 @@ int main(void) {
 						v = 0;
 						a = 0;
 
-//						EndEffector_Event(Place);
-						HAL_Delay(2200);
 						pos_i = PosY;
 
-						if(position_index < 8) {
+//						HAL_Delay(2000);
+						State_Control = TRAJECTGENNEXT;
 
-							position_index++;
-							State_Control = TRAJECTGEN;
-							State_RUNTRAYMODE = GOPICK;
+					}
+					break;
 
-						} else {
-							y_axis_Moving_Status = 0;
-							State = IDLE;
+					case TRAJECTGENNEXT:
+
+					if(flag == 0 && x_axis_Moving_Status == 0) {
+						EndEffector_Event(Place);
+						timestamp_wait = HAL_GetTick()+2200;
+						flag = 1;
+					} else if(flag == 1) {
+						if(HAL_GetTick() >= timestamp_wait) {
+							flag = 0;
+							if(position_index < 8) {
+								pos_i = PosY;
+								position_index++;
+								State_Control = TRAJECTGEN;
+								State_RUNTRAYMODE = GOPICK;
+
+							} else {
+								y_axis_Moving_Status = 0;
+								State = INIT_HOMING;
+							}
 						}
 					}
+
 					break;
 				}
 				break;
@@ -584,7 +609,11 @@ int main(void) {
 			break;
 
 			case EMERGENCY_LIMIT:
-			state_IT = 1;
+			if(HAL_GPIO_ReadPin(Emergency_GPIO_Port, Emergency_Pin) == 0) {
+				EndEffector_Event(Out_Emergency);
+				State = LAST_STATE;
+				LAST_STATE = 0;
+			}
 			break;
 
 			case SENSOR_CHECK:
@@ -623,6 +652,7 @@ int main(void) {
 				HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
 						RESET);
 			}
+
 			if(go_next == 1 ) {
 				State = INIT;
 			}
@@ -1099,11 +1129,17 @@ static void MX_GPIO_Init(void) {
 	HAL_GPIO_WritePin(JoyStick_SS_PIN_GPIO_Port, JoyStick_SS_PIN_Pin,
 			GPIO_PIN_RESET);
 
-	/*Configure GPIO pins : B1_Pin Emergency_Pin Photoelectric_sensor_1_Pin */
-	GPIO_InitStruct.Pin = B1_Pin | Emergency_Pin | Photoelectric_sensor_1_Pin;
+	/*Configure GPIO pins : B1_Pin Photoelectric_sensor_1_Pin */
+	GPIO_InitStruct.Pin = B1_Pin | Photoelectric_sensor_1_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+	/*Configure GPIO pin : Emergency_Pin */
+	GPIO_InitStruct.Pin = Emergency_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(Emergency_GPIO_Port, &GPIO_InitStruct);
 
 	/*Configure GPIO pins : Switch_Relay_3_Pin Switch_Relay_1_Pin Switch_Relay_2_Pin DIR_Pin */
 	GPIO_InitStruct.Pin = Switch_Relay_3_Pin | Switch_Relay_1_Pin
@@ -1145,6 +1181,30 @@ static void MX_GPIO_Init(void) {
 }
 
 /* USER CODE BEGIN 4 */
+void ramp_set(int number) {
+
+	if (number == 1) {
+		HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin, SET);
+	} else {
+		HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin, RESET);
+		HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin, RESET);
+	}
+
+	if (number == 2) {
+		HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin, SET);
+	} else {
+		HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin, RESET);
+		HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin, RESET);
+	}
+
+	if (number == 3) {
+		HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin, SET);
+	} else {
+		HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin, RESET);
+		HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin, RESET);
+	}
+}
+
 void Photo_IT() {
 	switch (state_IT) {
 	case 0:
@@ -1184,12 +1244,18 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 //		}
 //	}
 
-//	if (GPIO_Pin == Emergency_Pin) {
-//		Dutyfeedback = 0;
-//		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
-//		state_IT = 1;
-//		State = EMERGENCY_LIMIT;
-//	}
+	if (GPIO_Pin == Emergency_Pin) {
+		if (State != SENSOR_CHECK) {
+			LAST_STATE = State;
+			Dutyfeedback = 0;
+			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+
+			EndEffector_Event(In_Emergency);
+
+			State = EMERGENCY_LIMIT;
+		}
+
+	}
 }
 
 uint64_t micros() {

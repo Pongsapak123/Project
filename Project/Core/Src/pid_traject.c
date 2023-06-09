@@ -19,16 +19,16 @@ extern uint64_t pid_us;
 
 int8_t dir;
 
-float Kp = 2400.0; //2600
+float Kp = 2700.0; //2600
 float Ki = 1.3; //1
 float Kd = 0.7; //0.7
 
-float current_pos = 0.0;
+extern float current_pos;
 float previous_pos = 0.0;
-float current_velocity = 0.0;
+extern float current_velocity;
 float previous_velocity = 0.0;
 float max_velocity = 0.0;
-float acc = 0.0;
+extern float acc;
 float max_acc = 0.0;
 float rangeTarget = 0.5;
 
@@ -90,8 +90,10 @@ extern enum State_Machine {
 void PID(float setposition) {
 
 	current_pos = PosY;
-	current_velocity = (current_pos - previous_pos) / (pid_us / 1000000.0);
+	current_velocity = (current_pos - previous_pos) / (traject_us / 1000000.0);
+	acc = (current_velocity - previous_velocity) / (traject_us / 1000000.0);
 	previous_pos = current_pos;
+	previous_velocity = current_velocity;
 
 	if (pos_f < -350) {
 		pos_f = -350;

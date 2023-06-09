@@ -41,6 +41,10 @@ extern enum Laser {
 	Read,
 } EndEffector_State;
 
+extern enum State_Machine_Control {
+	TRAJECTGEN, TRAJECTEVA_PID, TRAJECTGENNEXT
+} State_Control;
+
 int Count_Time = 0;
 
 void EndEffector_Event(char EndEffector_State) {
@@ -96,14 +100,16 @@ void EndEffector_Event(char EndEffector_State) {
 
 		case Pick_Check:
 			if (Count_Time == 0) {
-				timestamp_End = HAL_GetTick() + 200;
+				timestamp_End = HAL_GetTick() + 550;
 				Count_Time = 1;
 			}
 			if (Count_Time == 1) {
 				if (Read_data[0] == 0b0111) {
 //					Read_data[0] = 0;
-					EndEffector_State = Init;
+
 					Count_Time = 0;
+					EndEffector_State = Init;
+//					State_Control = TRAJECTGENNEXT;
 
 				}
 				if (HAL_GetTick() >= timestamp_End) {
@@ -122,12 +128,13 @@ void EndEffector_Event(char EndEffector_State) {
 
 		case Place_Check:
 			if (Count_Time == 0) {
-				timestamp_End = HAL_GetTick() + 200;
+				timestamp_End = HAL_GetTick() + 550;
 				Count_Time = 1;
 			}
 			if (Count_Time == 1) {
 				if (Read_data[0] == 0b0100) {
 //					Read_data[0] = 0;
+//					State_Control = TRAJECTGENNEXT;
 					EndEffector_State = Init;
 					Count_Time = 0;
 

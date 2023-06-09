@@ -12,7 +12,6 @@
 #include "main.h"
 #include "ModBusRTU.h"
 
-
 extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim1;
 
@@ -35,7 +34,7 @@ extern enum State_Machine {
 	RUNPOINTMODE,
 	EMERGENCY_LIMIT,
 	SENSOR_CHECK,
-} State ;
+} State;
 
 extern int homing;
 
@@ -57,6 +56,9 @@ void motor(uint32_t speed, int DIR) {
 }
 
 void Init_Homing() {
+	HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin, SET);
+	HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin, RESET);
+	HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin, RESET);
 	static uint16_t state_homing = 0;
 	switch (state_homing) {
 	case 0:
@@ -79,10 +81,17 @@ void Init_Homing() {
 			QEIReadRaw = __HAL_TIM_GET_COUNTER(&htim2);
 			PosY = QEIReadRaw * (120.0 / 8192.0);
 
-			y_axis_Moving_Status = 0;
+			y_axis_Moving_Status= 0;
 
 			state_homing = 0;
 			EndEffector_Event(6);
+
+			HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin,
+					RESET);
+			HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin,
+					RESET);
+			HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin,
+					RESET);
 			State = IDLE;
 		} else {
 			motor(Max_Counter_PWM * 0.18, 1);

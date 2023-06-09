@@ -125,12 +125,18 @@ void JoyStickControl() {
 
 		if (TRAY_STATUS == PICK) {
 //			Calculate_Position(104, 114.5, 63.7, 221.5, 281.9, 281.7);
+			Pick_Tray_Origin_x= (int16_t)(x_c[0] * 10);
+			Pick_Tray_Origin_y = (int16_t)(y_c[0] * 10);
+			Pick_Tray_Origin_Orientation = asinf(sin_zeta) * 100;
 			memcpy(Pick_Point_X, x_final_joy, sizeof(x_final_joy) + 1);
 			memcpy(Pick_Point_Y, y_final_joy, sizeof(y_final_joy) + 1);
 
 			count = 0;
 		} else if (TRAY_STATUS == PLACE) {
 //			Calculate_Position(70.4, 128.2, 130.3, -267.1, -269.1, -218.4);
+			Place_Tray_Origin_x = (int16_t)(x_c[0] * 10);
+			Place_Tray_Origin_y = (int16_t)(y_c[0] * 10);
+			Place_Tray_Origin_Orientation = asinf(sin_zeta) * 100;
 			memcpy(Place_Point_X, x_final_joy, sizeof(x_final_joy) + 1);
 			memcpy(Place_Point_Y, y_final_joy, sizeof(y_final_joy) + 1);
 			count = 0;
@@ -144,14 +150,19 @@ void JoyStickControl() {
 //			Place_Tray_Origin_y= -2000;
 //			Place_Tray_Origin_Orientation= 9000;;
 
+		HAL_GPIO_WritePin(Switch_Relay_1_GPIO_Port, Switch_Relay_1_Pin, RESET);
+		HAL_GPIO_WritePin(Switch_Relay_2_GPIO_Port, Switch_Relay_2_Pin, RESET);
+		HAL_GPIO_WritePin(Switch_Relay_3_GPIO_Port, Switch_Relay_3_Pin, RESET);
 		memset(x_c, 0, sizeof(x_c));
 		memset(y_c, 0, sizeof(y_c));
 
 		y_axis_Moving_Status= 0;
-		State = IDLE;
+//		End_Effector_Status = 0;
+
 		count = 0;
 
 		motor(0, 0);
+		State = IDLE;
 
 	}
 //	else if (RX[4] == 0xEF && button_last == 0xFF) {
