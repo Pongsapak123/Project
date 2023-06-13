@@ -19,8 +19,12 @@ extern uint64_t pid_us;
 
 int8_t dir;
 
+//float Kp = 2700.0; //2600
+//float Ki = 1.3; //1
+//float Kd = 0.7; //0.7
+
 float Kp = 2700.0; //2600
-float Ki = 1.3; //1
+float Ki = 2.0; //1
 float Kd = 0.7; //0.7
 
 extern float current_pos;
@@ -83,9 +87,10 @@ extern enum State_Machine {
 	SETPLACETRAY,
 	RUNTRAYMODE,
 	RUNPOINTMODE,
-	EMERGENCY_LIMIT,
+	EMERGENCY,
+	OUT_EMBERGENCY,
 	SENSOR_CHECK,
-} State ;
+} State;
 
 void PID(float setposition) {
 

@@ -23,7 +23,6 @@ static uint8_t Pick_data[2] = { 0x10, 0x5A };
 static uint8_t Place_data[2] = { 0x10, 0x69 };
 static uint8_t Read_data[1];
 
-
 uint32_t timestamp_End = 0;
 extern enum Laser {
 	Init,

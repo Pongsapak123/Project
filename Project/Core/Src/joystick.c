@@ -50,7 +50,8 @@ extern enum State_Machine {
 	SETPLACETRAY,
 	RUNTRAYMODE,
 	RUNPOINTMODE,
-	EMERGENCY_LIMIT,
+	EMERGENCY,
+	OUT_EMBERGENCY,
 	SENSOR_CHECK,
 } State;
 
@@ -127,7 +128,7 @@ void JoyStickControl() {
 //			Calculate_Position(104, 114.5, 63.7, 221.5, 281.9, 281.7);
 			Pick_Tray_Origin_x= (int16_t)(x_c[0] * 10);
 			Pick_Tray_Origin_y = (int16_t)(y_c[0] * 10);
-			Pick_Tray_Origin_Orientation = asinf(sin_zeta) * 100;
+			Pick_Tray_Origin_Orientation = asinf(fabsf(sin_zeta))  * 100;
 			memcpy(Pick_Point_X, x_final_joy, sizeof(x_final_joy) + 1);
 			memcpy(Pick_Point_Y, y_final_joy, sizeof(y_final_joy) + 1);
 
@@ -136,7 +137,7 @@ void JoyStickControl() {
 //			Calculate_Position(70.4, 128.2, 130.3, -267.1, -269.1, -218.4);
 			Place_Tray_Origin_x = (int16_t)(x_c[0] * 10);
 			Place_Tray_Origin_y = (int16_t)(y_c[0] * 10);
-			Place_Tray_Origin_Orientation = asinf(sin_zeta) * 100;
+			Place_Tray_Origin_Orientation = asinf(fabsf(sin_zeta))  * 100;
 			memcpy(Place_Point_X, x_final_joy, sizeof(x_final_joy) + 1);
 			memcpy(Place_Point_Y, y_final_joy, sizeof(y_final_joy) + 1);
 			count = 0;
