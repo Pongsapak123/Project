@@ -94,7 +94,7 @@ void EndEffector_Event(char EndEffector_State) {
 		case Pick:
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Pick_data, 2,
 					100);
-			EndEffector_State = Pick_Check;
+			EndEffector_State = Init;
 			break;
 
 		case Pick_Check:
@@ -105,9 +105,8 @@ void EndEffector_Event(char EndEffector_State) {
 			if (Count_Time == 1) {
 				if (Read_data[0] == 0b0111) {
 //					Read_data[0] = 0;
-
-					Count_Time = 0;
 					EndEffector_State = Init;
+					Count_Time = 0;
 //					State_Control = TRAJECTGENNEXT;
 
 				}
@@ -122,7 +121,7 @@ void EndEffector_Event(char EndEffector_State) {
 
 			HAL_I2C_Master_Transmit(&hi2c2, End_Address << 1, Place_data, 2,
 					100);
-			EndEffector_State = Place_Check;
+			EndEffector_State = Init;
 			break;
 
 		case Place_Check:
@@ -147,6 +146,7 @@ void EndEffector_Event(char EndEffector_State) {
 			break;
 		case Read:
 			HAL_I2C_Master_Receive(&hi2c2, End_Address << 1, Read_data, 1, 100);
+			EndEffector_State = Init;
 			break;
 		}
 
